@@ -66,14 +66,23 @@ function gravarCache(chave: string, valor: ResultadoFrete) {
 async function buscarJSON<T>(url: string, init: RequestInit = {}): Promise<T> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  // As mensagens de erro levam só o código e o nome do serviço (nunca a URL, que contém o endereço).
+  const host = new URL(url).host;
+  let r: Response;
   try {
-    const r = await fetch(url, { ...init, signal: ctl.signal, cache: "no-store" });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return (await r.json()) as T;
+    r = await fetch(url, { ...init, signal: ctl.signal, cache: "no-store" });
+  } catch {
+    throw new Error(ctl.signal.aborted ? `tempo esgotado (${host})` : `falha de rede (${host})`);
   } finally {
     clearTimeout(t);
   }
+  if (!r.ok) throw new Error(`HTTP ${r.status} (${host})`);
+  return (await r.json()) as T;
 }
+
+/** Motivos de falha de cada tentativa, para diagnóstico (sem dados do endereço). */
+type Motivos = string[];
+const motivo = (err: unknown) => (err instanceof Error ? err.message : "erro desconhecido");
 
 function coordsDoAmbiente(): Coord | null {
   const lat = Number(process.env.LOJA_LAT);
@@ -84,7 +93,12 @@ function coordsDoAmbiente(): Coord | null {
 }
 
 // ---------- 1. CEP → coordenadas ----------
-async function coordPorCep(cep: string, cidade: string, origem: Coord): Promise<Coord | null> {
+async function coordPorCep(
+  cep: string,
+  cidade: string,
+  origem: Coord,
+  motivos: Motivos,
+): Promise<Coord | null> {
   const d = soDigitos(cep);
   if (d.length !== 8) return null;
   try {
@@ -93,9 +107,17 @@ async function coordPorCep(cep: string, cidade: string, origem: Coord): Promise<
     );
     const c = { lat: Number(j.lat), lon: Number(j.lng) };
     // Descarta se a cidade não bate ou se a coordenada cai fora da área (erros da base de CEPs).
-    if (cidade && j.city && normalizar(j.city) !== normalizar(cidade)) return null;
-    return dentroDaArea(c, origem) ? c : null;
-  } catch {
+    if (cidade && j.city && normalizar(j.city) !== normalizar(cidade)) {
+      motivos.push("cep: cidade diferente");
+      return null;
+    }
+    if (!dentroDaArea(c, origem)) {
+      motivos.push(Number.isFinite(c.lat) ? "cep: fora da área" : "cep: sem coordenada");
+      return null;
+    }
+    return c;
+  } catch (err) {
+    motivos.push(`cep: ${motivo(err)}`);
     return null;
   }
 }
@@ -141,6 +163,7 @@ async function nominatim(params: Record<string, string>, origem: Coord): Promise
 async function geocodificarPorNome(
   e: EnderecoFrete,
   origem: Coord,
+  motivos: Motivos,
 ): Promise<(Coord & { aproximado: boolean }) | null> {
   const estado = e.uf.toUpperCase() === "SP" ? "São Paulo" : e.uf;
   const tentativas: [Record<string, string>, boolean][] = [];
@@ -153,31 +176,26 @@ async function geocodificarPorNome(
   if (!ruaGenerica(e.rua) && e.rua)
     tentativas.push([{ street: e.rua, city: e.cidade, state: estado, country: "Brasil" }, false]);
   if (e.bairro) tentativas.push([{ q: `${e.bairro}, ${e.cidade}, ${e.uf}, Brasil` }, true]);
+  if (!tentativas.length) motivos.push("nome: rua genérica e sem bairro");
   for (const [params, aproximado] of tentativas) {
-    const c = await nominatim(params, origem);
-    if (c) return { ...c, aproximado };
+    try {
+      const c = await nominatim(params, origem);
+      if (c) return { ...c, aproximado };
+      motivos.push(`nome (${aproximado ? "bairro" : "rua"}): não encontrado`);
+    } catch (err) {
+      motivos.push(`nome (${aproximado ? "bairro" : "rua"}): ${motivo(err)}`);
+    }
   }
   return null;
 }
 
 // ---------- origem ----------
-// Coordenadas da loja: vêm do ambiente (LOJA_LAT/LOJA_LON). Sem elas, localiza o CEP de origem uma única vez.
-let origemMemo: Promise<Coord> | null = null;
-function origem(): Promise<Coord> {
-  const doAmbiente = coordsDoAmbiente();
-  if (doAmbiente) return Promise.resolve(doAmbiente);
-  origemMemo ??= (async () => {
-    console.warn("LOJA_LAT/LOJA_LON não configuradas: localizando o CEP de origem.");
-    // Centro aproximado de Mogi Mirim só para delimitar a busca; nunca é usado como origem.
-    const referencia = { lat: -22.4319, lon: -46.9578 };
-    const c = await coordPorCep(loja.frete.origemCep, loja.frete.origemCidade, referencia);
-    if (!c) throw new Error("origem");
-    return c;
-  })().catch((err) => {
-    origemMemo = null;
-    throw err;
-  });
-  return origemMemo;
+// Coordenadas da loja: vêm só do ambiente (LOJA_LAT/LOJA_LON). Não há plano B: as bases de CEP põem o
+// CEP da loja em Mogi Guaçu, o que daria taxas erradas sem ninguém perceber.
+function origem(): Coord {
+  const c = coordsDoAmbiente();
+  if (!c) throw new Error("configuração: LOJA_LAT e LOJA_LON não definidas no ambiente");
+  return c;
 }
 
 // ---------- rota ----------
@@ -185,7 +203,7 @@ async function rotaOsrmKm(a: Coord, b: Coord): Promise<number> {
   const j = await buscarJSON<{ routes?: { distance: number }[] }>(
     `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`,
   );
-  if (!j.routes?.[0]) throw new Error("rota");
+  if (!j.routes?.[0]) throw new Error("rota: OSRM sem resultado");
   return j.routes[0].distance / 1000;
 }
 
@@ -217,7 +235,7 @@ async function rotaGoogleKm(chave: string, o: Coord, e: EnderecoFrete): Promise<
     },
   );
   const m = j.routes?.[0]?.distanceMeters;
-  if (!m) throw new Error("rota");
+  if (!m) throw new Error("rota: Google sem resultado");
   return m / 1000;
 }
 
@@ -227,7 +245,7 @@ export async function calcularFreteServidor(e: EnderecoFrete): Promise<Resultado
   const emCache = lerCache(chave);
   if (emCache) return emCache;
 
-  const o = await origem();
+  const o = origem();
   const google = process.env.GOOGLE_MAPS_API_KEY;
 
   let km: number;
@@ -235,14 +253,15 @@ export async function calcularFreteServidor(e: EnderecoFrete): Promise<Resultado
   if (google) {
     km = await rotaGoogleKm(google, o, e);
   } else {
-    const porCep = await coordPorCep(e.cep, e.cidade, o);
-    const porNome = porCep ? null : await geocodificarPorNome(e, o);
+    const motivos: Motivos = [];
+    const porCep = await coordPorCep(e.cep, e.cidade, o, motivos);
+    const porNome = porCep ? null : await geocodificarPorNome(e, o, motivos);
     const destino = porCep ?? porNome;
-    if (!destino) throw new Error("geocodificacao");
+    if (!destino) throw new Error(`localização [${motivos.join("; ")}]`);
     aproximado = porNome?.aproximado ?? false;
     km = await rotaOsrmKm(o, destino);
   }
-  if (km > loja.frete.rotaMaxKm) throw new Error("rota_improvavel");
+  if (km > loja.frete.rotaMaxKm) throw new Error("rota improvável (distância acima do limite)");
 
   const resultado = { ...calcularFrete(km), aproximado };
   gravarCache(chave, resultado);

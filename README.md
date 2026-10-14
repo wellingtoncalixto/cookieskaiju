@@ -28,14 +28,14 @@ Outros comandos:
 
 ## Variáveis de ambiente
 
-| Variável                 | Para que serve                                                                                  |
-| ------------------------ | ----------------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`   | Endereço do site (canonical, sitemap, Open Graph). Ex.: `https://www.cookieskaiju.com.br`       |
-| `NEXT_PUBLIC_WHATSAPP`   | WhatsApp que recebe os pedidos, só números com 55 + DDD                                         |
-| `NEXT_PUBLIC_MODO_TESTE` | `true` libera o próximo fim de semana a qualquer hora (veja abaixo)                             |
-| `LOJA_LAT` / `LOJA_LON`  | Coordenadas da origem das entregas (CEP 13808-113). Ficam só no servidor e não aparecem no site |
-| `NOMINATIM_USER_AGENT`   | Identificação exigida pelo OpenStreetMap                                                        |
-| `GOOGLE_MAPS_API_KEY`    | Opcional. Se preenchida, a rota é calculada pela Google Routes API em vez do OpenStreetMap/OSRM |
+| Variável                 | Para que serve                                                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`   | Endereço do site (canonical, sitemap, Open Graph). Ex.: `https://www.cookieskaiju.com.br`                                                                     |
+| `NEXT_PUBLIC_WHATSAPP`   | WhatsApp que recebe os pedidos, só números com 55 + DDD                                                                                                       |
+| `NEXT_PUBLIC_MODO_TESTE` | `true` libera o próximo fim de semana a qualquer hora (veja abaixo)                                                                                           |
+| `LOJA_LAT` / `LOJA_LON`  | **Obrigatórias.** Coordenadas da origem das entregas (CEP 13808-113). Ficam só no servidor e não aparecem no site. Sem elas, a taxa fica sempre "a confirmar" |
+| `NOMINATIM_USER_AGENT`   | Identificação exigida pelo OpenStreetMap                                                                                                                      |
+| `GOOGLE_MAPS_API_KEY`    | Opcional. Se preenchida, a rota é calculada pela Google Routes API em vez do OpenStreetMap/OSRM                                                               |
 
 As variáveis `NEXT_PUBLIC_*` entram no build: depois de mudar alguma, publique de novo.
 
@@ -80,6 +80,13 @@ Cada `git push` na branch principal publica uma nova versão. As páginas são e
 3. Se o CEP não tiver coordenada, ou se ela cair fora de `raioMaxKm` da loja (erro da base de CEPs), o servidor tenta pelo nome da rua e do bairro no OpenStreetMap, restrito à região. Quando só acha o bairro, a taxa aparece como aproximada.
 4. A rota de carro sai do OSRM (ou da Google Routes API, se `GOOGLE_MAPS_API_KEY` estiver preenchida).
 5. Se algo falhar, ou se a rota passar de `rotaMaxKm`, a taxa aparece como "a confirmar" e o pedido segue normalmente. A loja confere pelo link "Rota" da mensagem.
+
+### Se a taxa ficar sempre "a confirmar" em produção
+
+Abra o site, faça uma simulação de pedido e, no navegador, veja a resposta de `/api/frete` (DevTools → Rede), ou veja os logs da função na Vercel. O campo `etapa` diz o que falhou, sem mostrar o endereço:
+
+- `configuração: LOJA_LAT e LOJA_LON não definidas` → cadastre as variáveis na Vercel e publique de novo.
+- `HTTP 403` ou `HTTP 429` de algum serviço → o serviço gratuito está recusando o servidor. A solução definitiva é preencher `GOOGLE_MAPS_API_KEY`.
 
 ## Privacidade (LGPD)
 

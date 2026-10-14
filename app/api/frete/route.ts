@@ -31,8 +31,11 @@ export async function POST(request: Request) {
 
   try {
     return Response.json(await calcularFreteServidor(dados), { headers: semCache });
-  } catch {
-    // Sem log: a mensagem de erro poderia conter partes do endereço.
-    return Response.json({ erro: "rota_indisponivel" }, { status: 502, headers: semCache });
+  } catch (err) {
+    // A mensagem diz só o passo e o serviço que falharam (ex.: "HTTP 403 (nominatim.openstreetmap.org)"),
+    // nunca o endereço, então pode ir para o log e para a resposta.
+    const etapa = err instanceof Error ? err.message : "erro desconhecido";
+    console.error("frete: falhou —", etapa);
+    return Response.json({ erro: "rota_indisponivel", etapa }, { status: 502, headers: semCache });
   }
 }
