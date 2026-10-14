@@ -1,0 +1,180 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`montarMensagemWhatsApp > dinheiro com troco 1`] = `
+"*NOVO PEDIDO · COOKIES KAIJU*
+
+*Cookies*
+2x Explosão de Nutella · R$ 36,00
+1x Duplo Maltine · R$ 23,00
+Subtotal: R$ 59,00
+
+*Entrega*
+Sábado, 17/10 · 18h às 20h
+Rua Exemplo, 123 · Apto 4
+Centro · Mogi Mirim/SP · CEP 13800-000
+Referência: portão preto
+Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113%2C%20Mogi%20Mirim%20-%20SP&destination=Rua%20Exemplo%2C%20123%20-%20Centro%2C%20Mogi%20Mirim%20-%20SP%2C%2013800-000
+
+*Taxa de entrega:* R$ 5,00 (estimado: 4,2 km de rota, conta como 5 km)
+*TOTAL: R$ 64,00*
+
+*Pagamento:* Dinheiro · troco para R$ 100
+
+*Cliente*
+Maria Souza
+(19) 99999-8888"
+`;
+
+exports[`montarMensagemWhatsApp > dinheiro sem troco, Pix e observação 1`] = `
+"*NOVO PEDIDO · COOKIES KAIJU*
+
+*Cookies*
+2x Explosão de Nutella · R$ 36,00
+1x Duplo Maltine · R$ 23,00
+Subtotal: R$ 59,00
+
+*Entrega*
+Sábado, 17/10 · 18h às 20h
+Rua Exemplo, 123 · Apto 4
+Centro · Mogi Mirim/SP · CEP 13800-000
+Referência: portão preto
+Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113%2C%20Mogi%20Mirim%20-%20SP&destination=Rua%20Exemplo%2C%20123%20-%20Centro%2C%20Mogi%20Mirim%20-%20SP%2C%2013800-000
+
+*Taxa de entrega:* R$ 5,00 (estimado: 4,2 km de rota, conta como 5 km)
+*TOTAL: R$ 64,00*
+
+*Pagamento:* Pix
+
+*Cliente*
+Maria Souza
+(19) 99999-8888
+
+*Obs.:* É presente"
+`;
+
+exports[`montarMensagemWhatsApp > frete a confirmar 1`] = `
+"*NOVO PEDIDO · COOKIES KAIJU*
+
+*Cookies*
+2x Explosão de Nutella · R$ 36,00
+1x Duplo Maltine · R$ 23,00
+Subtotal: R$ 59,00
+
+*Entrega*
+Sábado, 17/10 · 18h às 20h
+Rua Exemplo, 123 · Apto 4
+Centro · Mogi Mirim/SP · CEP 13800-000
+Referência: portão preto
+Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113%2C%20Mogi%20Mirim%20-%20SP&destination=Rua%20Exemplo%2C%20123%20-%20Centro%2C%20Mogi%20Mirim%20-%20SP%2C%2013800-000
+
+*Taxa de entrega:* a confirmar pela loja
+*TOTAL: R$ 59,00* + entrega
+
+*Pagamento:* Cartão por aproximação (na entrega)
+
+*Cliente*
+Maria Souza
+(19) 99999-8888"
+`;
+
+exports[`montarMensagemWhatsApp > frete calculado 1`] = `
+"*NOVO PEDIDO · COOKIES KAIJU*
+
+*Cookies*
+2x Explosão de Nutella · R$ 36,00
+1x Duplo Maltine · R$ 23,00
+Subtotal: R$ 59,00
+
+*Entrega*
+Sábado, 17/10 · 18h às 20h
+Rua Exemplo, 123 · Apto 4
+Centro · Mogi Mirim/SP · CEP 13800-000
+Referência: portão preto
+Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113%2C%20Mogi%20Mirim%20-%20SP&destination=Rua%20Exemplo%2C%20123%20-%20Centro%2C%20Mogi%20Mirim%20-%20SP%2C%2013800-000
+
+*Taxa de entrega:* R$ 5,00 (estimado: 4,2 km de rota, conta como 5 km)
+*TOTAL: R$ 64,00*
+
+*Pagamento:* Cartão por aproximação (na entrega)
+
+*Cliente*
+Maria Souza
+(19) 99999-8888"
+`;
+
+exports[`montarMensagemWhatsApp > frete grátis pela promoção 1`] = `
+"*NOVO PEDIDO · COOKIES KAIJU*
+
+*Cookies*
+2x Explosão de Nutella · R$ 36,00
+1x Duplo Maltine · R$ 23,00
+Subtotal: R$ 59,00
+
+*Entrega*
+Sábado, 17/10 · 18h às 20h
+Rua Exemplo, 123 · Apto 4
+Centro · Mogi Mirim/SP · CEP 13800-000
+Referência: portão preto
+Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113%2C%20Mogi%20Mirim%20-%20SP&destination=Rua%20Exemplo%2C%20123%20-%20Centro%2C%20Mogi%20Mirim%20-%20SP%2C%2013800-000
+
+*Taxa de entrega:* GRÁTIS (promoção de lançamento, Mogi Mirim)
+*TOTAL: R$ 59,00*
+
+*Pagamento:* Cartão por aproximação (na entrega)
+
+*Cliente*
+Maria Souza
+(19) 99999-8888"
+`;
+
+exports[`montarMensagemWhatsApp > modo teste 1`] = `
+"*NOVO PEDIDO · COOKIES KAIJU*
+_PEDIDO DE TESTE_
+
+*Cookies*
+2x Explosão de Nutella · R$ 36,00
+1x Duplo Maltine · R$ 23,00
+Subtotal: R$ 59,00
+
+*Entrega*
+Sábado, 17/10 · 18h às 20h
+Rua Exemplo, 123 · Apto 4
+Centro · Mogi Mirim/SP · CEP 13800-000
+Referência: portão preto
+Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113%2C%20Mogi%20Mirim%20-%20SP&destination=Rua%20Exemplo%2C%20123%20-%20Centro%2C%20Mogi%20Mirim%20-%20SP%2C%2013800-000
+
+*Taxa de entrega:* R$ 5,00 (estimado: 4,2 km de rota, conta como 5 km)
+*TOTAL: R$ 64,00*
+
+*Pagamento:* Cartão por aproximação (na entrega)
+
+*Cliente*
+Maria Souza
+(19) 99999-8888"
+`;
+
+exports[`montarMensagemWhatsApp > pronta-entrega 1`] = `
+"*NOVO PEDIDO · COOKIES KAIJU*
+_Pronta-entrega (sujeito a estoque)_
+
+*Cookies*
+2x Explosão de Nutella · R$ 36,00
+1x Duplo Maltine · R$ 23,00
+Subtotal: R$ 59,00
+
+*Entrega*
+Sábado, 17/10 · 18h às 20h
+Rua Exemplo, 123 · Apto 4
+Centro · Mogi Mirim/SP · CEP 13800-000
+Referência: portão preto
+Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113%2C%20Mogi%20Mirim%20-%20SP&destination=Rua%20Exemplo%2C%20123%20-%20Centro%2C%20Mogi%20Mirim%20-%20SP%2C%2013800-000
+
+*Taxa de entrega:* R$ 5,00 (estimado: 4,2 km de rota, conta como 5 km)
+*TOTAL: R$ 64,00*
+
+*Pagamento:* Cartão por aproximação (na entrega)
+
+*Cliente*
+Maria Souza
+(19) 99999-8888"
+`;

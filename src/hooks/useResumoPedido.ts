@@ -1,0 +1,33 @@
+"use client";
+
+import { useMemo } from "react";
+import type { Agenda } from "@/lib/agenda";
+import { avaliarPromo, dicaPromo, resolverTaxa } from "@/lib/frete";
+import { agoraSaoPaulo, isoData } from "@/lib/tempo";
+import { usePedido } from "@/store/pedido";
+import { quantidadeTotal, subtotalSacola, useSacola } from "@/store/sacola";
+
+/** Subtotal, promoção, taxa e total do pedido atual. */
+export function useResumoPedido(agenda: Agenda | null) {
+  const itens = useSacola((s) => s.itens);
+  const cidade = usePedido((s) => s.endereco.cidade);
+  const horario = usePedido((s) => s.horario);
+  const frete = usePedido((s) => s.frete);
+
+  return useMemo(() => {
+    const quantidade = quantidadeTotal(itens);
+    const subtotal = subtotalSacola(itens);
+    // A promoção compara com a data de ENTREGA: a escolhida, ou a primeira disponível.
+    const dataEntrega = horario?.split("|")[0] ?? agenda?.dias[0]?.data ?? isoData(agoraSaoPaulo());
+    const promo = cidade ? avaliarPromo({ cidade, quantidade, dataEntrega }) : null;
+    const taxa = resolverTaxa(frete, promo);
+    return {
+      quantidade,
+      subtotal,
+      promo,
+      taxa,
+      dica: dicaPromo(promo, quantidade),
+      total: subtotal + (taxa.valor ?? 0),
+    };
+  }, [itens, cidade, horario, frete, agenda]);
+}

@@ -1,0 +1,6 @@
+.next
+node_modules
+public
+referencia-index.html
+tests/__snapshots__
+package-lock.json
