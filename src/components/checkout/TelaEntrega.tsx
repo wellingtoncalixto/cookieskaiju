@@ -224,13 +224,21 @@ export function TelaEntrega() {
   );
 }
 
-/** Calcula a taxa no servidor (debounce de 900 ms) quando rua, número, bairro e cidade estão preenchidos. */
+/**
+ * Calcula a taxa no servidor (debounce de 900 ms). A busca é pelo CEP assim que ele estiver completo;
+ * sem CEP, usa rua, número, bairro e cidade.
+ */
 function useFrete(e: Endereco) {
   const seq = useRef(0);
   useEffect(() => {
     const { definir } = usePedido.getState();
-    const completo = e.rua.trim() && e.numero.trim() && e.bairro.trim() && e.cidade.trim();
-    const chave = [e.rua, e.numero, e.bairro, e.cidade, e.uf].map(normalizar).join("|");
+    const cep = soDigitos(e.cep);
+    const temCep = cep.length === 8;
+    const completo = temCep || (e.rua.trim() && e.numero.trim() && e.bairro.trim() && e.cidade.trim());
+    // Com CEP, o número não muda a localização: digitar o número não refaz o cálculo.
+    const chave = temCep
+      ? `cep:${cep}`
+      : [e.rua, e.numero, e.bairro, e.cidade, e.uf].map(normalizar).join("|");
     if (!completo) {
       if (usePedido.getState().frete.status !== "vazio")
         definir({ frete: { status: "vazio" }, freteChave: "" });
@@ -249,6 +257,7 @@ function useFrete(e: Endereco) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            cep: e.cep,
             rua: e.rua,
             numero: e.numero,
             bairro: e.bairro,
@@ -278,7 +287,7 @@ function useFrete(e: Endereco) {
       if (usePedido.getState().frete.status === "calculando")
         usePedido.getState().definir({ freteChave: "" });
     };
-  }, [e.rua, e.numero, e.bairro, e.cidade, e.uf]);
+  }, [e.cep, e.rua, e.numero, e.bairro, e.cidade, e.uf]);
 }
 
 /** Máscara do CEP e preenchimento automático pelo ViaCEP (direto do navegador). */

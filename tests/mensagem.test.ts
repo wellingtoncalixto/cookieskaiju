@@ -33,10 +33,19 @@ const confirmar: Taxa = { tipo: "confirmar", valor: null };
 describe("montarMensagemWhatsApp", () => {
   it("frete calculado", () => {
     const msg = montarMensagemWhatsApp(base);
-    expect(msg).toContain("*Taxa de entrega:* R$ 5,00 (estimado: 4,2 km de rota, conta como 5 km)");
+    expect(msg).toContain("*Taxa de entrega:* R$ 5,00\n");
+    expect(msg).not.toMatch(/\d km/);
     expect(msg).toContain("*TOTAL: R$ 64,00*");
     expect(msg).toContain("*Pagamento:* Cartão por aproximação (na entrega)");
     expect(msg).toMatchSnapshot();
+  });
+
+  it("frete estimado só pelo bairro", () => {
+    const msg = montarMensagemWhatsApp({
+      ...base,
+      taxa: { tipo: "calculada", valor: 6, km1Decimal: 5.2, kmCobrado: 6, aproximado: true },
+    });
+    expect(msg).toContain("*Taxa de entrega:* R$ 6,00 (estimada pelo bairro)");
   });
 
   it("frete grátis pela promoção", () => {

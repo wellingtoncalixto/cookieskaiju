@@ -121,6 +121,10 @@ export const loja = {
     /** CEP de origem (não é exibido no site; serve para o link de rota da mensagem). */
     origemCep: "13808-113",
     origemCidade: "Mogi Mirim",
+    /** Coordenadas encontradas a mais de X km (linha reta) da loja são descartadas como erro de busca. */
+    raioMaxKm: 30,
+    /** Rotas acima de X km viram "a confirmar" em vez de uma taxa improvável. */
+    rotaMaxKm: 60,
   },
 
   promo: {

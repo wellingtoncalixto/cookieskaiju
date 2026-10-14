@@ -1,5 +1,5 @@
 import { loja } from "@/config/loja";
-import { brl, decimal1, normalizar } from "@/lib/formato";
+import { brl, normalizar } from "@/lib/formato";
 
 type ConfigFrete = { base: number; kmInclusos: number; porKm: number };
 type ConfigPromo = { ate: string; cidades: readonly { nome: string; min: number }[] };
@@ -26,6 +26,30 @@ export function calcularFrete(distanciaKm: number, cfg: ConfigFrete = loja.frete
   const { km1Decimal, kmCobrado } = arredondarKm(distanciaKm);
   return { km1Decimal, kmCobrado, valor: valorFrete(kmCobrado, cfg) };
 }
+
+export type Coord = { lat: number; lon: number };
+
+/** Distância em linha reta (haversine), em km. Serve só para conferir se uma coordenada é plausível. */
+export function distanciaRetaKm(a: Coord, b: Coord): number {
+  const rad = (g: number) => (g * Math.PI) / 180;
+  const dLat = rad(b.lat - a.lat);
+  const dLon = rad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** A coordenada está dentro da área atendida (raio em linha reta a partir da loja)? */
+export const dentroDaArea = (ponto: Coord, origem: Coord, raioKm: number = loja.frete.raioMaxKm) =>
+  Number.isFinite(ponto.lat) && Number.isFinite(ponto.lon) && distanciaRetaKm(ponto, origem) <= raioKm;
+
+const NUMERAIS =
+  "um|uma|dois|duas|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte";
+const RUA_GENERICA = new RegExp(
+  `^(rua|avenida|av|travessa|alameda|viela|via|estrada|praca)\\.?\\s+(\\d+[a-z]?|[a-z]|${NUMERAIS})$`,
+);
+
+/** Nome de rua que se repete em vários bairros ("Rua 7", "Rua Dois", "Rua A"). */
+export const ruaGenerica = (rua: string) => RUA_GENERICA.test(normalizar(rua));
 
 /** A promoção ainda vale numa data (AAAA-MM-DD)? */
 export const promoVigente = (dataIso: string, cfg: ConfigPromo = loja.promo) => dataIso <= cfg.ate;
@@ -105,7 +129,8 @@ export function textosTaxa(taxa: Taxa) {
     case "calculada":
       return {
         curto: brl(taxa.valor),
-        detalhe: `${decimal1(taxa.km1Decimal)} km de rota${taxa.aproximado ? ", aproximado pelo bairro" : ""}. Conta como ${taxa.kmCobrado} km.`,
+        // Os km não aparecem para o cliente; vão só na mensagem do WhatsApp, para a loja conferir.
+        detalhe: taxa.aproximado ? "Estimada pelo bairro. A loja confirma no WhatsApp." : "",
       };
     case "calculando":
       return { curto: "calculando", detalhe: "Traçando a rota até o seu endereço." };

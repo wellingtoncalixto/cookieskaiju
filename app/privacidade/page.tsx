@@ -45,8 +45,12 @@ export default function Privacidade() {
               <b>ViaCEP</b>: recebe o CEP digitado para preencher rua, bairro e cidade.
             </li>
             <li>
+              <b>AwesomeAPI de CEP</b>: recebe só o CEP, para localizar a sua rua no mapa e calcular a
+              distância.
+            </li>
+            <li>
               <b>OpenStreetMap (Nominatim) e OSRM</b>: recebem o endereço, sem nome nem telefone, para
-              calcular a distância de rota e a taxa de entrega.
+              localizar a rua quando o CEP não basta e calcular a distância de rota e a taxa de entrega.
             </li>
             <li>
               <b>Google Maps (Routes API)</b>: quando ativado pela loja, substitui o OpenStreetMap no cálculo

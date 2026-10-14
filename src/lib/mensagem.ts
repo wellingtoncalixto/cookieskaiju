@@ -1,5 +1,5 @@
 import { loja, type FormaPagamento } from "@/config/loja";
-import { brl, decimal1, valorTroco } from "@/lib/formato";
+import { brl, valorTroco } from "@/lib/formato";
 import type { Taxa } from "@/lib/frete";
 
 export type Endereco = {
@@ -51,7 +51,8 @@ function linhaTaxa(taxa: Taxa): string {
     case "gratis":
       return `GRÁTIS (promoção de lançamento, ${taxa.cidade})`;
     case "calculada":
-      return `${brl(taxa.valor)} (estimado: ${decimal1(taxa.km1Decimal)} km de rota, conta como ${taxa.kmCobrado} km)`;
+      // Sem km: a loja confere a distância pelo link "Rota" da própria mensagem.
+      return `${brl(taxa.valor)}${taxa.aproximado ? " (estimada pelo bairro)" : ""}`;
     default:
       return "a confirmar pela loja";
   }

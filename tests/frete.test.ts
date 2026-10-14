@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { arredondarKm, avaliarPromo, calcularFrete, dicaPromo, resolverTaxa } from "@/lib/frete";
+import {
+  arredondarKm,
+  avaliarPromo,
+  calcularFrete,
+  dentroDaArea,
+  dicaPromo,
+  distanciaRetaKm,
+  resolverTaxa,
+  ruaGenerica,
+} from "@/lib/frete";
 
 describe("frete", () => {
   it.each([
@@ -70,5 +79,29 @@ describe("promo", () => {
       promo,
     );
     expect(taxa).toMatchObject({ tipo: "gratis", valor: 0 });
+  });
+});
+
+describe("conferência de área", () => {
+  const loja = { lat: -22.450558, lon: -46.935937 };
+
+  it("aceita pontos em Mogi Mirim e Mogi Guaçu", () => {
+    expect(dentroDaArea({ lat: -22.4137, lon: -46.95683 }, loja)).toBe(true); // Cachoeira de Cima
+    expect(dentroDaArea({ lat: -22.3687, lon: -46.9425 }, loja)).toBe(true); // Centro de Mogi Guaçu
+  });
+
+  it("descarta coordenadas absurdas da base de CEPs", () => {
+    expect(distanciaRetaKm({ lat: -24.02565, lon: -46.49896 }, loja)).toBeGreaterThan(150);
+    expect(dentroDaArea({ lat: -24.02565, lon: -46.49896 }, loja)).toBe(false);
+    expect(dentroDaArea({ lat: Number.NaN, lon: -46.9 }, loja)).toBe(false);
+  });
+});
+
+describe("ruas com nome genérico", () => {
+  it.each(["Rua 7", "Rua Dois", "rua três", "Rua A", "Av. 15", "Travessa 2B"])("%s é genérica", (r) => {
+    expect(ruaGenerica(r)).toBe(true);
+  });
+  it.each(["Rua Padre Roque", "Rua Peru", "Avenida Brasil", "Rua 13 de Maio"])("%s não é genérica", (r) => {
+    expect(ruaGenerica(r)).toBe(false);
   });
 });

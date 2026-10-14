@@ -73,6 +73,14 @@ Cardápio, ficha do produto, sacola, mensagem do WhatsApp, dados estruturados (J
 
 Cada `git push` na branch principal publica uma nova versão. As páginas são estáticas e se atualizam a cada publicação.
 
+## Como a taxa de entrega é calculada
+
+1. O cliente digita o CEP. O navegador busca rua, bairro e cidade no ViaCEP.
+2. Com o CEP completo, o servidor (`/api/frete`) localiza o CEP no mapa pela AwesomeAPI de CEP.
+3. Se o CEP não tiver coordenada, ou se ela cair fora de `raioMaxKm` da loja (erro da base de CEPs), o servidor tenta pelo nome da rua e do bairro no OpenStreetMap, restrito à região. Quando só acha o bairro, a taxa aparece como aproximada.
+4. A rota de carro sai do OSRM (ou da Google Routes API, se `GOOGLE_MAPS_API_KEY` estiver preenchida).
+5. Se algo falhar, ou se a rota passar de `rotaMaxKm`, a taxa aparece como "a confirmar" e o pedido segue normalmente. A loja confere pelo link "Rota" da mensagem.
+
 ## Privacidade (LGPD)
 
 - Só a sacola (sabores e quantidades) fica salva no navegador, em `localStorage`.

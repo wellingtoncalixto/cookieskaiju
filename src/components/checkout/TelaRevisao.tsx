@@ -145,7 +145,7 @@ export function TelaRevisao() {
               <span>Taxa de entrega</span>
               <span>{taxa.curto}</span>
             </div>
-            <div className="d">{taxa.detalhe}</div>
+            {taxa.detalhe && <div className="d">{taxa.detalhe}</div>}
             <div className="r g">
               <span>Total</span>
               <span className="tnum">{brl(resumo.total)}</span>
