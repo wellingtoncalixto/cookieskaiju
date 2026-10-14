@@ -22,7 +22,11 @@ export function TelaEnviado() {
   const titulo = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    if (liberada) titulo.current?.focus({ preventScroll: true });
+    if (!liberada) return;
+    titulo.current?.focus({ preventScroll: true });
+    // Pedido concluído: a sacola começa vazia na próxima visita. A mensagem continua disponível
+    // aqui (em memória) para copiar ou reabrir o WhatsApp.
+    useSacola.getState().limpar();
   }, [liberada]);
 
   if (!liberada) return <Carregando />;
