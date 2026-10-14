@@ -73,9 +73,9 @@ describe("montarMensagemWhatsApp", () => {
 
   it("dinheiro sem troco, Pix e observação", () => {
     expect(montarMensagemWhatsApp({ ...base, pagamento: "dinheiro" })).toContain("*Pagamento:* Dinheiro\n");
-    const pix = montarMensagemWhatsApp({ ...base, pagamento: "pix", obs: "É presente" });
+    const pix = montarMensagemWhatsApp({ ...base, pagamento: "pix", obs: "Interfone quebrado" });
     expect(pix).toContain("*Pagamento:* Pix\n");
-    expect(pix.endsWith("*Obs.:* É presente")).toBe(true);
+    expect(pix.endsWith("*Obs.:* Interfone quebrado")).toBe(true);
     expect(pix).toMatchSnapshot();
   });
 

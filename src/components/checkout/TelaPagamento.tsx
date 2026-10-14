@@ -131,7 +131,7 @@ export function TelaPagamento() {
                   id="obs"
                   className="input"
                   maxLength={500}
-                  placeholder="É presente, interfone quebrado, prefere o início da janela…"
+                  placeholder="Interfone quebrado, prefere o início da janela…"
                   value={pedido.obs}
                   onChange={(e) => pedido.definir({ obs: e.target.value })}
                 />
