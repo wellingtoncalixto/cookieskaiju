@@ -26,6 +26,8 @@ export type EnderecoFrete = {
   bairro: string;
   cidade: string;
   uf: string;
+  /** Coordenada do CEP já consultada pelo navegador do cliente (validada aqui antes de usar). */
+  coordCep?: { lat: number; lon: number; cidade: string } | null;
 };
 export type ResultadoFrete = { km1Decimal: number; kmCobrado: number; valor: number; aproximado: boolean };
 
@@ -41,8 +43,12 @@ const cache = new Map<string, { expira: number; valor: ResultadoFrete }>();
 async function chaveCache(e: EnderecoFrete) {
   const cep = soDigitos(e.cep);
   // Com CEP, o número não muda a localização: digitar o número não refaz a busca.
+  // A coordenada que veio do navegador entra na chave: um valor adulterado não contamina o cache dos outros.
+  const doNavegador = e.coordCep ? `@${e.coordCep.lat.toFixed(4)},${e.coordCep.lon.toFixed(4)}` : "";
   const texto =
-    cep.length === 8 ? `cep:${cep}` : [e.rua, e.numero, e.bairro, e.cidade, e.uf].map(normalizar).join("|");
+    cep.length === 8
+      ? `cep:${cep}${doNavegador}`
+      : [e.rua, e.numero, e.bairro, e.cidade, e.uf].map(normalizar).join("|");
   const hash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
   return Buffer.from(hash).toString("base64url");
 }
@@ -105,21 +111,40 @@ async function coordPorCep(
     const j = await buscarJSON<{ lat?: string; lng?: string; city?: string }>(
       `https://cep.awesomeapi.com.br/json/${d}`,
     );
-    const c = { lat: Number(j.lat), lon: Number(j.lng) };
-    // Descarta se a cidade não bate ou se a coordenada cai fora da área (erros da base de CEPs).
-    if (cidade && j.city && normalizar(j.city) !== normalizar(cidade)) {
-      motivos.push("cep: cidade diferente");
-      return null;
-    }
-    if (!dentroDaArea(c, origem)) {
-      motivos.push(Number.isFinite(c.lat) ? "cep: fora da área" : "cep: sem coordenada");
-      return null;
-    }
-    return c;
+    return validarPontoCep(
+      { lat: Number(j.lat), lon: Number(j.lng), cidade: j.city ?? "" },
+      cidade,
+      origem,
+      motivos,
+      "cep",
+    );
   } catch (err) {
     motivos.push(`cep: ${motivo(err)}`);
     return null;
   }
+}
+
+/**
+ * Confere uma coordenada vinda da base de CEPs (pelo servidor ou pelo navegador do cliente):
+ * descarta se a cidade não bate ou se o ponto cai fora da área atendida (erros da base).
+ */
+function validarPontoCep(
+  ponto: { lat: number; lon: number; cidade: string },
+  cidade: string,
+  origem: Coord,
+  motivos: Motivos,
+  rotulo: string,
+): Coord | null {
+  if (cidade && ponto.cidade && normalizar(ponto.cidade) !== normalizar(cidade)) {
+    motivos.push(`${rotulo}: cidade diferente`);
+    return null;
+  }
+  const c = { lat: ponto.lat, lon: ponto.lon };
+  if (!dentroDaArea(c, origem)) {
+    motivos.push(Number.isFinite(c.lat) ? `${rotulo}: fora da área` : `${rotulo}: sem coordenada`);
+    return null;
+  }
+  return c;
 }
 
 // ---------- 2. Nominatim (plano B) ----------
@@ -254,7 +279,12 @@ export async function calcularFreteServidor(e: EnderecoFrete): Promise<Resultado
     km = await rotaGoogleKm(google, o, e);
   } else {
     const motivos: Motivos = [];
-    const porCep = await coordPorCep(e.cep, e.cidade, o, motivos);
+    // 1º a coordenada que o navegador trouxe; se não veio ou não passou na conferência, tenta daqui.
+    const doNavegador = e.coordCep
+      ? validarPontoCep(e.coordCep, e.cidade, o, motivos, "cep (navegador)")
+      : null;
+    if (!e.coordCep && soDigitos(e.cep).length === 8) motivos.push("cep (navegador): sem coordenada");
+    const porCep = doNavegador ?? (await coordPorCep(e.cep, e.cidade, o, motivos));
     const porNome = porCep ? null : await geocodificarPorNome(e, o, motivos);
     const destino = porCep ?? porNome;
     if (!destino) throw new Error(`localização [${motivos.join("; ")}]`);

@@ -9,6 +9,9 @@ const corpo = z.object({
   bairro: z.string().trim().max(120).default(""),
   cidade: z.string().trim().max(120).default(""),
   uf: z.string().trim().length(2).default("SP"),
+  coordCep: z
+    .object({ lat: z.number().finite(), lon: z.number().finite(), cidade: z.string().max(120).default("") })
+    .nullish(),
 });
 
 const semCache = { "Cache-Control": "no-store" };

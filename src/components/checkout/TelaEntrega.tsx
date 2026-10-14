@@ -253,6 +253,9 @@ function useFrete(e: Endereco) {
       definir({ frete: { status: "calculando" }, freteChave: chave });
       let frete: EstadoFrete;
       try {
+        // O CEP é localizado daqui do navegador: cada cliente usa a própria cota do serviço de CEP
+        // (do servidor, o IP compartilhado da hospedagem esbarra no limite de requisições).
+        const coordCep = temCep ? await localizarCep(cep, ctl.signal) : null;
         const r = await fetch("/api/frete", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -263,6 +266,7 @@ function useFrete(e: Endereco) {
             bairro: e.bairro,
             cidade: e.cidade,
             uf: e.uf || "SP",
+            coordCep,
           }),
           signal: ctl.signal,
         });
@@ -351,4 +355,18 @@ function useCep() {
   }
 
   return { ...estado, alterar };
+}
+
+/** CEP → coordenadas (AwesomeAPI), consultado pelo navegador. Retorna `null` se não houver coordenada. */
+async function localizarCep(cep: string, signal: AbortSignal) {
+  try {
+    const r = await fetch(`https://cep.awesomeapi.com.br/json/${cep}`, { signal });
+    if (!r.ok) return null;
+    const j = (await r.json()) as { lat?: string; lng?: string; city?: string };
+    const lat = Number(j.lat);
+    const lon = Number(j.lng);
+    return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon, cidade: j.city ?? "" } : null;
+  } catch {
+    return null;
+  }
 }
