@@ -31,6 +31,14 @@ const perguntas = [
     resposta:
       "Sim. No sábado e no domingo, a partir das 8h, aceitamos pedidos de pronta-entrega enquanto houver estoque, para janelas que começam daqui a pelo menos uma hora.",
   },
+  ...(loja.retirada.habilitada
+    ? [
+        {
+          pergunta: "Posso retirar o pedido?",
+          resposta: `Sim. Ao finalizar, escolha “Retirada”: não há taxa de entrega e a retirada é nos mesmos dias e janelas das entregas. ${loja.retirada.aviso}`,
+        },
+      ]
+    : []),
   {
     pergunta: "Como eu pago?",
     resposta:

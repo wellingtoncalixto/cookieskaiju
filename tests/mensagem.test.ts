@@ -48,6 +48,21 @@ describe("montarMensagemWhatsApp", () => {
     expect(msg).toContain("*Taxa de entrega:* R$ 6,00 (estimada pelo bairro)");
   });
 
+  it("retirada: sem endereço, sem rota e sem taxa", () => {
+    const msg = montarMensagemWhatsApp({
+      ...base,
+      modalidade: "retirada",
+      taxa: { tipo: "retirada", valor: 0 },
+    });
+    expect(msg).toContain("*Retirada*\nSábado, 17/10 · 18h às 20h\nLocal: a combinar com a loja");
+    expect(msg).toContain("*TOTAL: R$ 59,00*");
+    expect(msg).toContain("*Pagamento:* Cartão por aproximação (na retirada)");
+    expect(msg).not.toContain("Rua Exemplo");
+    expect(msg).not.toContain("Rota:");
+    expect(msg).not.toContain("Taxa de entrega");
+    expect(msg).toMatchSnapshot();
+  });
+
   it("frete grátis pela promoção", () => {
     const msg = montarMensagemWhatsApp({ ...base, taxa: gratis });
     expect(msg).toContain("*Taxa de entrega:* GRÁTIS (promoção de lançamento, Mogi Mirim)");

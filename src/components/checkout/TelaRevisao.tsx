@@ -44,10 +44,12 @@ export function TelaRevisao() {
   const data = dataIso ? dataDeIso(dataIso) : null;
   const horarioTexto = data && janela ? `${diaPorExtenso(data)} · ${janela.nome}` : "";
   const taxa = textosTaxa(resumo.taxa);
+  const retirada = pedido.modalidade === "retirada";
   const erros = [...c.erros.entrega.mensagens, ...c.erros.pagamento.mensagens];
 
   const mensagem = montarMensagemWhatsApp({
     itens: linhas.map((l) => ({ nome: l.produto.nome, quantidade: l.quantidade, preco: l.produto.preco })),
+    modalidade: pedido.modalidade,
     prontaEntrega: situacao.agenda.modo === "estoque",
     teste: situacao.agenda.teste,
     horario: horarioTexto,
@@ -100,26 +102,30 @@ export function TelaRevisao() {
 
           <section className="csec">
             <div className="ct">
-              <h2>Entrega</h2>
-              <Link href="/pedido/entrega" aria-label="Editar entrega">
+              <h2>{retirada ? "Retirada" : "Entrega"}</h2>
+              <Link href="/pedido/entrega" aria-label={retirada ? "Editar retirada" : "Editar entrega"}>
                 Editar
               </Link>
             </div>
             <p>{horarioTexto || "Escolha um horário"}</p>
             {situacao.agenda.modo === "estoque" && <p>Pronta-entrega (sujeito a estoque)</p>}
-            <p>
-              {e.rua}, {e.numero}
-              {e.complemento && ` · ${e.complemento}`}
-              <br />
-              {e.bairro} · {e.cidade}/{uf}
-              {e.cep && ` · CEP ${e.cep}`}
-              {e.referencia && (
-                <>
-                  <br />
-                  Referência: {e.referencia}
-                </>
-              )}
-            </p>
+            {retirada ? (
+              <p>Local combinado com a loja pelo WhatsApp</p>
+            ) : (
+              <p>
+                {e.rua}, {e.numero}
+                {e.complemento && ` · ${e.complemento}`}
+                <br />
+                {e.bairro} · {e.cidade}/{uf}
+                {e.cep && ` · CEP ${e.cep}`}
+                {e.referencia && (
+                  <>
+                    <br />
+                    Referência: {e.referencia}
+                  </>
+                )}
+              </p>
+            )}
           </section>
 
           <section className="csec">
@@ -132,7 +138,7 @@ export function TelaRevisao() {
             <p>
               {pedido.nome} · {pedido.telefone}
             </p>
-            <p>{linhaPagamento(pedido.pagamento, pedido.troco)}</p>
+            <p>{linhaPagamento(pedido.pagamento, pedido.troco, pedido.modalidade)}</p>
             {pedido.obs && <p>Obs.: {pedido.obs}</p>}
           </section>
 
@@ -141,10 +147,12 @@ export function TelaRevisao() {
               <span>Subtotal</span>
               <span className="tnum">{brl(resumo.subtotal)}</span>
             </div>
-            <div className="r">
-              <span>Taxa de entrega</span>
-              <span>{taxa.curto}</span>
-            </div>
+            {!retirada && (
+              <div className="r">
+                <span>Taxa de entrega</span>
+                <span>{taxa.curto}</span>
+              </div>
+            )}
             {taxa.detalhe && <div className="d">{taxa.detalhe}</div>}
             <div className="r g">
               <span>Total</span>
@@ -154,8 +162,10 @@ export function TelaRevisao() {
           </div>
         </div>
         <p className="fine">
-          O pedido é confirmado quando a Cookies Kaiju responder no WhatsApp. A taxa de entrega é estimada
-          pela distância de rota e conferida pela loja.
+          O pedido é confirmado quando a Cookies Kaiju responder no WhatsApp.
+          {retirada
+            ? " O local de retirada é combinado na confirmação."
+            : " A taxa de entrega é estimada pela distância de rota e conferida pela loja."}
         </p>
       </main>
 

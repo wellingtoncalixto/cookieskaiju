@@ -7,7 +7,10 @@ import type { Endereco } from "@/lib/mensagem";
  * Dados do checkout. Ficam SÓ em memória (sem persist): nome, telefone, endereço e
  * observações somem ao recarregar a página ou ao fazer um novo pedido (LGPD).
  */
+export type Modalidade = "entrega" | "retirada";
+
 export type EstadoPedido = {
+  modalidade: Modalidade;
   horario: string | null;
   endereco: Endereco;
   frete: EstadoFrete;
@@ -32,6 +35,7 @@ type Acoes = {
 };
 
 const inicial = (): EstadoPedido => ({
+  modalidade: "entrega",
   horario: null,
   endereco: {
     cep: "",

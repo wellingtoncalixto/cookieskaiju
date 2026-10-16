@@ -22,6 +22,7 @@ export function TelaEntrega() {
   const { pedido, situacao, resumo, erros } = c;
   const { endereco, definirEndereco, definir } = pedido;
   const tentou = pedido.tentou.entrega;
+  const retirada = loja.retirada.habilitada && pedido.modalidade === "retirada";
   const invalido = (campo: string) => (tentou && erros.entrega.campos.includes(campo)) || undefined;
 
   // Se a agenda mudou e o horário escolhido sumiu, limpa; se só há uma opção, escolhe.
@@ -33,7 +34,7 @@ export function TelaEntrega() {
       usePedido.getState().definir({ horario: validos.length === 1 ? validos[0] : null });
   }, [situacao]);
 
-  useFrete(endereco);
+  useFrete(endereco, !retirada);
   const cep = useCep();
   const cabecalho = (
     <CabecalhoEtapa titulo="Entrega" subtitulo="Etapa 1 de 3" etapa={1} voltarPara="/sacola" />
@@ -76,9 +77,40 @@ export function TelaEntrega() {
       {cabecalho}
       <main id="conteudo">
         <form className="col screen" noValidate autoComplete="off" onSubmit={(e) => e.preventDefault()}>
+          {loja.retirada.habilitada && (
+            <section className="block" aria-labelledby="t-como">
+              <div className="block-head">
+                <h2 id="t-como">Como receber</h2>
+              </div>
+              <fieldset className="pay">
+                <legend className="sr-only">Entrega ou retirada</legend>
+                {(
+                  [
+                    ["entrega", "Entrega", "No seu endereço, em Mogi Mirim ou Mogi Guaçu"],
+                    ["retirada", "Retirada", "Sem taxa de entrega"],
+                  ] as const
+                ).map(([id, nome, desc]) => (
+                  <label className="chip" key={id}>
+                    <input
+                      type="radio"
+                      name="modalidade"
+                      value={id}
+                      checked={pedido.modalidade === id}
+                      onChange={() => definir({ modalidade: id })}
+                    />
+                    <span>
+                      {nome}
+                      <em>{desc}</em>
+                    </span>
+                  </label>
+                ))}
+              </fieldset>
+            </section>
+          )}
+
           <section className="block" aria-labelledby="t-quando">
             <div className="block-head">
-              <h2 id="t-quando">Quando entregar</h2>
+              <h2 id="t-quando">{retirada ? "Quando retirar" : "Quando entregar"}</h2>
             </div>
             {ag.modo === "fechada" ? (
               <div className="closed">
@@ -127,79 +159,88 @@ export function TelaEntrega() {
             )}
           </section>
 
-          <section className="block" aria-labelledby="t-endereco">
-            <div className="block-head">
-              <h2 id="t-endereco">Endereço</h2>
-            </div>
-            <div className="grid6">
-              <div className="f s3 keep">
-                <label htmlFor="cep">CEP</label>
-                <input
-                  id="cep"
-                  className="input"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="postal-code"
-                  placeholder="13800-000"
-                  maxLength={9}
-                  value={endereco.cep}
-                  aria-describedby="cep-msg"
-                  onChange={(e) => cep.alterar(e.target.value)}
-                />
+          {retirada ? (
+            <section className="block" aria-labelledby="t-retirada">
+              <div className="block-head">
+                <h2 id="t-retirada">Local de retirada</h2>
               </div>
-              <div className="f s3 keep cep-msg">
-                <span id="cep-msg" className={`fmsg ${cep.classe}`} aria-live="polite">
-                  {cep.buscando && <span className="spin" aria-hidden="true" />}
-                  {cep.msg}
+              <p className="hint">{loja.retirada.aviso}</p>
+            </section>
+          ) : (
+            <section className="block" aria-labelledby="t-endereco">
+              <div className="block-head">
+                <h2 id="t-endereco">Endereço</h2>
+              </div>
+              <div className="grid6">
+                <div className="f s3 keep">
+                  <label htmlFor="cep">CEP</label>
+                  <input
+                    id="cep"
+                    className="input"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="postal-code"
+                    placeholder="13800-000"
+                    maxLength={9}
+                    value={endereco.cep}
+                    aria-describedby="cep-msg"
+                    onChange={(e) => cep.alterar(e.target.value)}
+                  />
+                </div>
+                <div className="f s3 keep cep-msg">
+                  <span id="cep-msg" className={`fmsg ${cep.classe}`} aria-live="polite">
+                    {cep.buscando && <span className="spin" aria-hidden="true" />}
+                    {cep.msg}
+                  </span>
+                </div>
+                <div className="f s4">{campo("rua", "Rua", { autoComplete: "address-line1" })}</div>
+                <div className="f s2">{campo("numero", "Número", { inputMode: "numeric" })}</div>
+                <div className="f s3">
+                  {campo(
+                    "complemento",
+                    <>
+                      Complemento <small>(opcional)</small>
+                    </>,
+                    { placeholder: "Apto, bloco, casa" },
+                  )}
+                </div>
+                <div className="f s3">{campo("bairro", "Bairro")}</div>
+                <div className="f s4">
+                  {campo("cidade", "Cidade", { autoComplete: "address-level2", placeholder: "Mogi Mirim" })}
+                </div>
+                <div className="f s2">
+                  {campo("uf", "UF", { maxLength: 2, autoComplete: "address-level1" })}
+                </div>
+                <div className="f">
+                  {campo(
+                    "referencia",
+                    <>
+                      Ponto de referência <small>(opcional)</small>
+                    </>,
+                    { placeholder: "Portão preto, ao lado da padaria" },
+                  )}
+                </div>
+              </div>
+
+              <div className={`fee${gratis ? " free" : ""}`} aria-live="polite">
+                <span className="t">
+                  <b>Taxa de entrega</b>
+                  {taxa.detalhe}
+                  {!gratis && resumo.dica && (
+                    <>
+                      <br />
+                      <span className="hl">{resumo.dica}</span>
+                    </>
+                  )}
+                </span>
+                <span className="v">
+                  {resumo.taxa.tipo === "calculando" && <span className="spin" aria-hidden="true" />}
+                  {resumo.taxa.tipo === "pendente" ? "—" : taxa.curto}
                 </span>
               </div>
-              <div className="f s4">{campo("rua", "Rua", { autoComplete: "address-line1" })}</div>
-              <div className="f s2">{campo("numero", "Número", { inputMode: "numeric" })}</div>
-              <div className="f s3">
-                {campo(
-                  "complemento",
-                  <>
-                    Complemento <small>(opcional)</small>
-                  </>,
-                  { placeholder: "Apto, bloco, casa" },
-                )}
-              </div>
-              <div className="f s3">{campo("bairro", "Bairro")}</div>
-              <div className="f s4">
-                {campo("cidade", "Cidade", { autoComplete: "address-level2", placeholder: "Mogi Mirim" })}
-              </div>
-              <div className="f s2">
-                {campo("uf", "UF", { maxLength: 2, autoComplete: "address-level1" })}
-              </div>
-              <div className="f">
-                {campo(
-                  "referencia",
-                  <>
-                    Ponto de referência <small>(opcional)</small>
-                  </>,
-                  { placeholder: "Portão preto, ao lado da padaria" },
-                )}
-              </div>
-            </div>
-
-            <div className={`fee${gratis ? " free" : ""}`} aria-live="polite">
-              <span className="t">
-                <b>Taxa de entrega</b>
-                {taxa.detalhe}
-                {!gratis && resumo.dica && (
-                  <>
-                    <br />
-                    <span className="hl">{resumo.dica}</span>
-                  </>
-                )}
-              </span>
-              <span className="v">
-                {resumo.taxa.tipo === "calculando" && <span className="spin" aria-hidden="true" />}
-                {resumo.taxa.tipo === "pendente" ? "—" : taxa.curto}
-              </span>
-            </div>
-            <AvisoPrivacidade variante="endereco" />
-          </section>
+              <AvisoPrivacidade variante="endereco" />
+            </section>
+          )}
         </form>
       </main>
 
@@ -228,9 +269,11 @@ export function TelaEntrega() {
  * Calcula a taxa no servidor (debounce de 900 ms). A busca é pelo CEP assim que ele estiver completo;
  * sem CEP, usa rua, número, bairro e cidade.
  */
-function useFrete(e: Endereco) {
+function useFrete(e: Endereco, ativo: boolean) {
   const seq = useRef(0);
   useEffect(() => {
+    // Na retirada não há taxa: não calcula (e mantém o último cálculo, se o cliente voltar para entrega).
+    if (!ativo) return;
     const { definir } = usePedido.getState();
     const cep = soDigitos(e.cep);
     const temCep = cep.length === 8;
@@ -291,7 +334,7 @@ function useFrete(e: Endereco) {
       if (usePedido.getState().frete.status === "calculando")
         usePedido.getState().definir({ freteChave: "" });
     };
-  }, [e.cep, e.rua, e.numero, e.bairro, e.cidade, e.uf]);
+  }, [ativo, e.cep, e.rua, e.numero, e.bairro, e.cidade, e.uf]);
 }
 
 /** Máscara do CEP e preenchimento automático pelo ViaCEP (direto do navegador). */

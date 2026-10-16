@@ -70,6 +70,16 @@ export default function Entrega() {
           </p>
         </section>
 
+        {loja.retirada.habilitada && (
+          <section className="prose" aria-labelledby="t-retirada">
+            <h2 id="t-retirada">Retirada</h2>
+            <p>
+              Prefere buscar? Escolha “Retirada” ao finalizar o pedido: não há taxa de entrega e você retira
+              nos mesmos dias e janelas. {loja.retirada.aviso}
+            </p>
+          </section>
+        )}
+
         {promoVigente(isoData(agoraSaoPaulo())) && (
           <section className="prose" aria-labelledby="t-promo">
             <h2 id="t-promo">Promoção de lançamento</h2>

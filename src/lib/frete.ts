@@ -86,6 +86,7 @@ export type EstadoFrete =
 
 /** Taxa já resolvida, considerando a promoção. Usada na tela e na mensagem. */
 export type Taxa =
+  | { tipo: "retirada"; valor: 0 }
   | { tipo: "gratis"; valor: 0; cidade: string; min: number }
   | { tipo: "calculada"; valor: number; km1Decimal: number; kmCobrado: number; aproximado: boolean }
   | { tipo: "calculando"; valor: null }
@@ -121,6 +122,8 @@ export function dicaPromo(promo: ResultadoPromo | null, quantidade: number): str
 /** Textos da taxa para a interface. */
 export function textosTaxa(taxa: Taxa) {
   switch (taxa.tipo) {
+    case "retirada":
+      return { curto: "Sem taxa", detalhe: "" };
     case "gratis":
       return {
         curto: "Grátis",

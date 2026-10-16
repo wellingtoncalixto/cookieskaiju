@@ -15,6 +15,8 @@ export type Endereco = {
 
 export type PedidoMensagem = {
   itens: { nome: string; quantidade: number; preco: number }[];
+  /** Ausente = entrega. */
+  modalidade?: "entrega" | "retirada";
   prontaEntrega: boolean;
   teste: boolean;
   /** "Sábado, 17/10 · 18h às 20h" */
@@ -59,9 +61,14 @@ function linhaTaxa(taxa: Taxa): string {
 }
 
 /** "Pix" · "Cartão por aproximação (na entrega)" · "Dinheiro · troco para R$ 100" */
-export function linhaPagamento(id: FormaPagamento["id"] | null, troco: string): string {
+export function linhaPagamento(
+  id: FormaPagamento["id"] | null,
+  troco: string,
+  modalidade: "entrega" | "retirada" = "entrega",
+): string {
   const forma = loja.pagamentos.find((p) => p.id === id);
   let txt = forma ? forma.naMensagem : "-";
+  if (modalidade === "retirada") txt = txt.replace("(na entrega)", "(na retirada)");
   if (id === "dinheiro" && valorTroco(troco)) txt += ` · troco para R$ ${valorTroco(troco)}`;
   return txt;
 }
@@ -80,18 +87,25 @@ export function montarMensagemWhatsApp(p: PedidoMensagem): string {
   for (const i of p.itens) L.push(`${i.quantidade}x ${i.nome} · ${brl(i.quantidade * i.preco)}`);
   L.push(`Subtotal: ${brl(subtotal)}`);
 
-  L.push("", "*Entrega*", p.horario);
-  L.push(
-    `${limpar(e.rua)}, ${limpar(e.numero)}${limpar(e.complemento) ? " · " + limpar(e.complemento) : ""}`,
-  );
-  L.push(`${limpar(e.bairro)} · ${limpar(e.cidade)}/${uf}${limpar(e.cep) ? " · CEP " + limpar(e.cep) : ""}`);
-  if (limpar(e.referencia)) L.push(`Referência: ${limpar(e.referencia)}`);
-  L.push(`Rota: ${linkRota(e)}`);
+  if (p.modalidade === "retirada") {
+    L.push("", "*Retirada*", p.horario, "Local: a combinar com a loja");
+    L.push("", `*TOTAL: ${brl(total)}*`);
+  } else {
+    L.push("", "*Entrega*", p.horario);
+    L.push(
+      `${limpar(e.rua)}, ${limpar(e.numero)}${limpar(e.complemento) ? " · " + limpar(e.complemento) : ""}`,
+    );
+    L.push(
+      `${limpar(e.bairro)} · ${limpar(e.cidade)}/${uf}${limpar(e.cep) ? " · CEP " + limpar(e.cep) : ""}`,
+    );
+    if (limpar(e.referencia)) L.push(`Referência: ${limpar(e.referencia)}`);
+    L.push(`Rota: ${linkRota(e)}`);
 
-  L.push("", `*Taxa de entrega:* ${linhaTaxa(p.taxa)}`);
-  L.push(`*TOTAL: ${brl(total)}*${p.taxa.valor === null ? " + entrega" : ""}`);
+    L.push("", `*Taxa de entrega:* ${linhaTaxa(p.taxa)}`);
+    L.push(`*TOTAL: ${brl(total)}*${p.taxa.valor === null ? " + entrega" : ""}`);
+  }
 
-  L.push("", `*Pagamento:* ${linhaPagamento(p.pagamento, p.troco)}`);
+  L.push("", `*Pagamento:* ${linhaPagamento(p.pagamento, p.troco, p.modalidade)}`);
 
   L.push("", "*Cliente*", limpar(p.cliente.nome), limpar(p.cliente.telefone));
 

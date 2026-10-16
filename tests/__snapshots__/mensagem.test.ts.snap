@@ -178,3 +178,24 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 Maria Souza
 (19) 99999-8888"
 `;
+
+exports[`montarMensagemWhatsApp > retirada: sem endereço, sem rota e sem taxa 1`] = `
+"*NOVO PEDIDO · COOKIES KAIJU*
+
+*Cookies*
+2x Explosão de Nutella · R$ 36,00
+1x Duplo Maltine · R$ 23,00
+Subtotal: R$ 59,00
+
+*Retirada*
+Sábado, 17/10 · 18h às 20h
+Local: a combinar com a loja
+
+*TOTAL: R$ 59,00*
+
+*Pagamento:* Cartão por aproximação (na retirada)
+
+*Cliente*
+Maria Souza
+(19) 99999-8888"
+`;

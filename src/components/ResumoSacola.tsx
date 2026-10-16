@@ -79,7 +79,7 @@ export function ResumoSacola({ variante }: { variante: "lateral" | "pagina" }) {
           <span className="tnum">{brl(r.subtotal)}</span>
         </div>
         <div className="r">
-          <span>Taxa de entrega</span>
+          <span>{r.taxa.tipo === "retirada" ? "Retirada" : "Taxa de entrega"}</span>
           <span>{taxa.curto}</span>
         </div>
         {r.taxa.tipo === "gratis" ? (

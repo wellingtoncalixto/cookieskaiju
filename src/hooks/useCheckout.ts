@@ -27,6 +27,7 @@ export function useCheckout() {
     ? { quantidade: resumo.quantidade, agenda: situacao.agenda, textoAgenda: situacao.textos.texto }
     : null;
   const dados = {
+    modalidade: pedido.modalidade,
     horario: pedido.horario,
     endereco: pedido.endereco,
     nome: pedido.nome,

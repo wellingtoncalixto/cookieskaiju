@@ -127,6 +127,13 @@ export const loja = {
     rotaMaxKm: 60,
   },
 
+  retirada: {
+    /** `false` esconde a opção de retirada no checkout. */
+    habilitada: true,
+    /** O endereço da loja não aparece no site: o local é combinado pelo WhatsApp. */
+    aviso: "O local de retirada é combinado com a loja pelo WhatsApp, na confirmação do pedido.",
+  },
+
   promo: {
     /** Última data de ENTREGA com promoção (inclusive), no formato AAAA-MM-DD. */
     ate: "2026-10-31",

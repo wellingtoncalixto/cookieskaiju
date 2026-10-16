@@ -13,6 +13,7 @@ export function TelaPagamento() {
   const liberada = useGuardaEtapa("pagamento", c);
   const { pedido, resumo, erros } = c;
   const tentou = pedido.tentou.pagamento;
+  const retirada = pedido.modalidade === "retirada";
   const invalido = (campo: string) => (tentou && erros.pagamento.campos.includes(campo)) || undefined;
   const cabecalho = (
     <CabecalhoEtapa
@@ -75,7 +76,7 @@ export function TelaPagamento() {
 
           <section className="block" aria-labelledby="t-pagamento">
             <div className="block-head">
-              <h2 id="t-pagamento">Pagamento na entrega</h2>
+              <h2 id="t-pagamento">{retirada ? "Pagamento na retirada" : "Pagamento na entrega"}</h2>
             </div>
             <p className="hint">
               Nada é cobrado pelo site. A forma escolhida vai junto na mensagem do pedido.
@@ -93,7 +94,7 @@ export function TelaPagamento() {
                   />
                   <span>
                     {p.nome}
-                    <em>{p.descricao}</em>
+                    <em>{retirada ? p.descricao.replace("Na entrega", "Na retirada") : p.descricao}</em>
                   </span>
                 </label>
               ))}

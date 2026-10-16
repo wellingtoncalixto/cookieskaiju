@@ -34,6 +34,16 @@ describe("validação das etapas", () => {
     expect(e.campos).toEqual(["horario", "rua", "numero", "bairro"]);
   });
 
+  it("retirada não exige endereço, só o horário", () => {
+    const vazio = { rua: "", numero: "", bairro: "", cidade: "" };
+    expect(
+      errosEntrega(ctx(), { modalidade: "retirada", horario: completo.horario, endereco: vazio }).mensagens,
+    ).toEqual([]);
+    expect(errosEntrega(ctx(), { modalidade: "retirada", horario: null, endereco: vazio }).mensagens).toEqual(
+      ["Escolha o dia e a janela de retirada."],
+    );
+  });
+
   it("horário que não existe mais na agenda é inválido", () => {
     expect(errosEntrega(ctx(), { ...completo, horario: "2026-10-10|noite" }).campos).toContain("horario");
   });

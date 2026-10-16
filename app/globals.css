@@ -1094,6 +1094,10 @@
     padding: 0;
     margin: 0;
   }
+  /* "Como receber": título logo acima das opções pede um respiro maior. */
+  .block-head + .pay {
+    margin-top: 8px;
+  }
   .pay .chip span {
     width: 100%;
     justify-content: space-between;

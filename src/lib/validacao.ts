@@ -41,6 +41,8 @@ export type Contexto = {
 };
 
 type DadosEntrega = {
+  /** Na retirada não há endereço a validar. Ausente = entrega. */
+  modalidade?: "entrega" | "retirada";
   horario: string | null;
   endereco: { rua: string; numero: string; bairro: string; cidade: string };
 };
@@ -54,15 +56,18 @@ export function errosSacola({ quantidade, agenda, textoAgenda }: Contexto): Erro
 }
 
 export function errosEntrega(ctx: Contexto, dados: DadosEntrega): Erros {
+  const retirada = dados.modalidade === "retirada";
   const horario: Erros =
     ctx.agenda.modo !== "fechada" && !horarioValido(ctx.agenda, dados.horario)
-      ? { mensagens: ["Escolha o dia e a janela de entrega."], campos: ["horario"] }
+      ? {
+          mensagens: [`Escolha o dia e a janela de ${retirada ? "retirada" : "entrega"}.`],
+          campos: ["horario"],
+        }
       : { mensagens: [], campos: [] };
-  return juntar(
-    errosSacola(ctx),
-    horario,
-    deZod(esquemaEndereco.safeParse(dados.endereco), ["rua", "numero", "bairro", "cidade"]),
-  );
+  const endereco: Erros = retirada
+    ? { mensagens: [], campos: [] }
+    : deZod(esquemaEndereco.safeParse(dados.endereco), ["rua", "numero", "bairro", "cidade"]);
+  return juntar(errosSacola(ctx), horario, endereco);
 }
 
 export function errosPagamento(dados: DadosPagamento): Erros {
