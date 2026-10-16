@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { horarioValido, type Agenda } from "@/lib/agenda";
-import { soDigitos } from "@/lib/formato";
 
 /** Resultado de validação: mensagens na ordem dos campos e ids dos campos inválidos. */
 export type Erros = { mensagens: string[]; campos: string[] };
@@ -16,7 +15,6 @@ export const esquemaEndereco = z.object({
 
 export const esquemaDados = z.object({
   nome: obrigatorio("Informe seu nome."),
-  telefone: z.string().refine((t) => soDigitos(t).length >= 10, { error: "Informe um WhatsApp com DDD." }),
   pagamento: z.enum(["pix", "cartao", "dinheiro"], { error: "Escolha a forma de pagamento." }),
 });
 
@@ -46,7 +44,7 @@ type DadosEntrega = {
   horario: string | null;
   endereco: { rua: string; numero: string; bairro: string; cidade: string };
 };
-type DadosPagamento = { nome: string; telefone: string; pagamento: string | null };
+type DadosPagamento = { nome: string; pagamento: string | null };
 
 export function errosSacola({ quantidade, agenda, textoAgenda }: Contexto): Erros {
   const m: string[] = [];
@@ -71,7 +69,7 @@ export function errosEntrega(ctx: Contexto, dados: DadosEntrega): Erros {
 }
 
 export function errosPagamento(dados: DadosPagamento): Erros {
-  return deZod(esquemaDados.safeParse(dados), ["nome", "telefone", "pagamento"]);
+  return deZod(esquemaDados.safeParse(dados), ["nome", "pagamento"]);
 }
 
 export type Etapa = "entrega" | "pagamento" | "revisao";

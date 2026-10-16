@@ -23,7 +23,7 @@ const base: PedidoMensagem = {
   taxa: { tipo: "calculada", valor: 5, km1Decimal: 4.2, kmCobrado: 5, aproximado: false },
   pagamento: "cartao",
   troco: "",
-  cliente: { nome: "Maria Souza", telefone: "(19) 99999-8888" },
+  cliente: { nome: "Maria Souza" },
   obs: "",
 };
 

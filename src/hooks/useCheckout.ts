@@ -31,7 +31,6 @@ export function useCheckout() {
     horario: pedido.horario,
     endereco: pedido.endereco,
     nome: pedido.nome,
-    telefone: pedido.telefone,
     pagamento: pedido.pagamento,
   };
 

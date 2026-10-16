@@ -27,8 +27,8 @@ export function AvisoPrivacidade({ variante }: { variante: "endereco" | "dados" 
       <div>
         <b>Seus dados não ficam salvos.</b>
         <p>
-          Nome, WhatsApp e endereço servem só para montar a mensagem do pedido que você envia para a Cookies
-          Kaiju pelo WhatsApp. O site não guarda nenhum desses dados.
+          Nome e endereço servem só para montar a mensagem do pedido que você envia para a Cookies Kaiju pelo
+          WhatsApp. O site não guarda nenhum desses dados.
         </p>
       </div>
     </div>

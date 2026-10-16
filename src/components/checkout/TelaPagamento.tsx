@@ -5,7 +5,6 @@ import { AvisoPrivacidade } from "@/components/Basicos";
 import { CabecalhoEtapa, Carregando, ListaErros, TotalAcao } from "@/components/checkout/Comum";
 import { loja } from "@/config/loja";
 import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
-import { mascaraTelefone } from "@/lib/formato";
 
 export function TelaPagamento() {
   const router = useRouter();
@@ -44,7 +43,8 @@ export function TelaPagamento() {
             </div>
             <AvisoPrivacidade variante="dados" />
             <div className="grid6">
-              <div className="f s3">
+              {/* Sem campo de WhatsApp: o número chega junto com a mensagem que o cliente envia. */}
+              <div className="f">
                 <label htmlFor="nome">Nome</label>
                 <input
                   id="nome"
@@ -54,21 +54,6 @@ export function TelaPagamento() {
                   value={pedido.nome}
                   aria-invalid={invalido("nome")}
                   onChange={(e) => pedido.definir({ nome: e.target.value })}
-                />
-              </div>
-              <div className="f s3">
-                <label htmlFor="telefone">WhatsApp</label>
-                <input
-                  id="telefone"
-                  className="input"
-                  type="tel"
-                  inputMode="tel"
-                  autoComplete="tel-national"
-                  placeholder="(19) 99999-9999"
-                  maxLength={16}
-                  value={pedido.telefone}
-                  aria-invalid={invalido("telefone")}
-                  onChange={(e) => pedido.definir({ telefone: mascaraTelefone(e.target.value) })}
                 />
               </div>
             </div>

@@ -21,8 +21,7 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 *Pagamento:* Dinheiro · troco para R$ 100
 
 *Cliente*
-Maria Souza
-(19) 99999-8888"
+Maria Souza"
 `;
 
 exports[`montarMensagemWhatsApp > dinheiro sem troco, Pix e observação 1`] = `
@@ -47,7 +46,6 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 
 *Cliente*
 Maria Souza
-(19) 99999-8888
 
 *Obs.:* Interfone quebrado"
 `;
@@ -73,8 +71,7 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 *Pagamento:* Cartão por aproximação (na entrega)
 
 *Cliente*
-Maria Souza
-(19) 99999-8888"
+Maria Souza"
 `;
 
 exports[`montarMensagemWhatsApp > frete calculado 1`] = `
@@ -98,8 +95,7 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 *Pagamento:* Cartão por aproximação (na entrega)
 
 *Cliente*
-Maria Souza
-(19) 99999-8888"
+Maria Souza"
 `;
 
 exports[`montarMensagemWhatsApp > frete grátis pela promoção 1`] = `
@@ -123,8 +119,7 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 *Pagamento:* Cartão por aproximação (na entrega)
 
 *Cliente*
-Maria Souza
-(19) 99999-8888"
+Maria Souza"
 `;
 
 exports[`montarMensagemWhatsApp > modo teste 1`] = `
@@ -149,8 +144,7 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 *Pagamento:* Cartão por aproximação (na entrega)
 
 *Cliente*
-Maria Souza
-(19) 99999-8888"
+Maria Souza"
 `;
 
 exports[`montarMensagemWhatsApp > pronta-entrega 1`] = `
@@ -175,8 +169,7 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 *Pagamento:* Cartão por aproximação (na entrega)
 
 *Cliente*
-Maria Souza
-(19) 99999-8888"
+Maria Souza"
 `;
 
 exports[`montarMensagemWhatsApp > retirada: sem endereço, sem rota e sem taxa 1`] = `
@@ -196,6 +189,5 @@ Local: a combinar com a loja
 *Pagamento:* Cartão por aproximação (na retirada)
 
 *Cliente*
-Maria Souza
-(19) 99999-8888"
+Maria Souza"
 `;

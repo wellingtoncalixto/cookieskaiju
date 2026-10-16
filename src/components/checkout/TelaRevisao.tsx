@@ -57,7 +57,7 @@ export function TelaRevisao() {
     taxa: resumo.taxa,
     pagamento: pedido.pagamento ?? "pix",
     troco: pedido.troco,
-    cliente: { nome: pedido.nome, telefone: pedido.telefone },
+    cliente: { nome: pedido.nome },
     obs: pedido.obs,
   });
 
@@ -135,9 +135,7 @@ export function TelaRevisao() {
                 Editar
               </Link>
             </div>
-            <p>
-              {pedido.nome} · {pedido.telefone}
-            </p>
+            <p>{pedido.nome}</p>
             <p>{linhaPagamento(pedido.pagamento, pedido.troco, pedido.modalidade)}</p>
             {pedido.obs && <p>Obs.: {pedido.obs}</p>}
           </section>

@@ -4,7 +4,7 @@ import type { EstadoFrete } from "@/lib/frete";
 import type { Endereco } from "@/lib/mensagem";
 
 /**
- * Dados do checkout. Ficam SÓ em memória (sem persist): nome, telefone, endereço e
+ * Dados do checkout. Ficam SÓ em memória (sem persist): nome, endereço e
  * observações somem ao recarregar a página ou ao fazer um novo pedido (LGPD).
  */
 export type Modalidade = "entrega" | "retirada";
@@ -17,7 +17,6 @@ export type EstadoPedido = {
   /** Endereço (normalizado) do último cálculo de frete. */
   freteChave: string;
   nome: string;
-  telefone: string;
   pagamento: FormaPagamento["id"] | null;
   troco: string;
   obs: string;
@@ -50,7 +49,6 @@ const inicial = (): EstadoPedido => ({
   frete: { status: "vazio" },
   freteChave: "",
   nome: "",
-  telefone: "",
   pagamento: null,
   troco: "",
   obs: "",

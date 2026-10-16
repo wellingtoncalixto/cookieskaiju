@@ -25,7 +25,8 @@ export type PedidoMensagem = {
   taxa: Taxa;
   pagamento: FormaPagamento["id"];
   troco: string;
-  cliente: { nome: string; telefone: string };
+  /** Sem telefone: o número do cliente chega junto com a própria mensagem no WhatsApp. */
+  cliente: { nome: string };
   obs: string;
 };
 
@@ -107,7 +108,7 @@ export function montarMensagemWhatsApp(p: PedidoMensagem): string {
 
   L.push("", `*Pagamento:* ${linhaPagamento(p.pagamento, p.troco, p.modalidade)}`);
 
-  L.push("", "*Cliente*", limpar(p.cliente.nome), limpar(p.cliente.telefone));
+  L.push("", "*Cliente*", limpar(p.cliente.nome));
 
   if (limpar(p.obs)) L.push("", `*Obs.:* ${limpar(p.obs)}`);
   return L.join("\n");

@@ -91,7 +91,7 @@ Abra o site, faça uma simulação de pedido e, no navegador, veja a resposta de
 ## Privacidade (LGPD)
 
 - Só a sacola (sabores e quantidades) fica salva no navegador, em `localStorage`.
-- Nome, WhatsApp, endereço e observações ficam só na memória da página e somem ao recarregar ou ao fazer um novo pedido.
+- Nome, endereço e observações ficam só na memória da página e somem ao recarregar ou ao fazer um novo pedido.
 - A rota `/api/frete` não grava nem registra endereços. O cache interno guarda só o resultado numérico, indexado por um hash do endereço.
 - O site não usa cookies de rastreamento. Se um dia entrar GA4 ou Meta Pixel, será preciso um banner de consentimento antes.
 

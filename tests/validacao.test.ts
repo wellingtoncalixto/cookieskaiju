@@ -11,7 +11,6 @@ const completo = {
   horario: "2026-10-17|noite",
   endereco,
   nome: "Ana",
-  telefone: "(19) 99999-8888",
   pagamento: "pix" as string | null,
 };
 
@@ -54,15 +53,12 @@ describe("validação das etapas", () => {
     );
   });
 
-  it("telefone precisa de pelo menos 10 dígitos e pagamento é obrigatório", () => {
-    expect(errosPagamento({ nome: "", telefone: "(19) 9999", pagamento: null }).mensagens).toEqual([
+  it("nome e pagamento são obrigatórios (sem campo de WhatsApp)", () => {
+    expect(errosPagamento({ nome: "", pagamento: null }).mensagens).toEqual([
       "Informe seu nome.",
-      "Informe um WhatsApp com DDD.",
       "Escolha a forma de pagamento.",
     ]);
-    expect(
-      errosPagamento({ nome: "Ana", telefone: "(19) 3333-4444", pagamento: "dinheiro" }).mensagens,
-    ).toEqual([]);
+    expect(errosPagamento({ nome: "Ana", pagamento: "dinheiro" }).mensagens).toEqual([]);
   });
 });
 

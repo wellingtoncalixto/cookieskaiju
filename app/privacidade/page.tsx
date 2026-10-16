@@ -24,9 +24,10 @@ export default function Privacidade() {
         <div className="prose">
           <h2>Quais dados você informa</h2>
           <p>
-            Para fazer um pedido você informa nome, WhatsApp, endereço de entrega e, se quiser, observações.
-            Esses dados ficam apenas na memória da página enquanto você preenche o pedido e são usados para
-            montar a mensagem que você mesmo envia para a {loja.nome} pelo WhatsApp.
+            Para fazer um pedido você informa nome, endereço de entrega (ou escolhe retirada) e, se quiser,
+            observações. O seu número de WhatsApp a loja recebe quando você envia a mensagem do pedido. Esses
+            dados ficam apenas na memória da página enquanto você preenche o pedido e são usados para montar a
+            mensagem que você mesmo envia para a {loja.nome} pelo WhatsApp.
           </p>
           <p>
             Nada disso é gravado no site: não usamos banco de dados, não guardamos no seu navegador e não

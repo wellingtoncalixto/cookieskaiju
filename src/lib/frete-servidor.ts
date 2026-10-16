@@ -111,7 +111,7 @@ async function coordPorCep(
     const j = await buscarJSON<{ lat?: string; lng?: string; city?: string }>(
       `https://cep.awesomeapi.com.br/json/${d}`,
     );
-    return validarPontoCep(
+    return await validarPontoCep(
       { lat: Number(j.lat), lon: Number(j.lng), cidade: j.city ?? "" },
       cidade,
       origem,
@@ -125,16 +125,18 @@ async function coordPorCep(
 }
 
 /**
- * Confere uma coordenada vinda da base de CEPs (pelo servidor ou pelo navegador do cliente):
- * descarta se a cidade não bate ou se o ponto cai fora da área atendida (erros da base).
+ * Confere uma coordenada vinda da base de CEPs (pelo servidor ou pelo navegador do cliente).
+ * Descarta se a cidade informada não bate, se o ponto cai fora da área atendida ou se, no mapa,
+ * o ponto fica em outra cidade. A base de CEPs às vezes diz "Mogi Mirim" mas põe o ponto em
+ * Mogi Guaçu, o que cobraria 16 km por um endereço vizinho da loja.
  */
-function validarPontoCep(
+async function validarPontoCep(
   ponto: { lat: number; lon: number; cidade: string },
   cidade: string,
   origem: Coord,
   motivos: Motivos,
   rotulo: string,
-): Coord | null {
+): Promise<Coord | null> {
   if (cidade && ponto.cidade && normalizar(ponto.cidade) !== normalizar(cidade)) {
     motivos.push(`${rotulo}: cidade diferente`);
     return null;
@@ -144,7 +146,38 @@ function validarPontoCep(
     motivos.push(Number.isFinite(c.lat) ? `${rotulo}: fora da área` : `${rotulo}: sem coordenada`);
     return null;
   }
+  const esperada = cidade || ponto.cidade;
+  if (esperada) {
+    try {
+      const real = await cidadeNoMapa(c);
+      if (real && normalizar(real) !== normalizar(esperada)) {
+        motivos.push(`${rotulo}: coordenada cai em outra cidade`);
+        return null;
+      }
+    } catch (err) {
+      // Sem a conferência, segue com a coordenada (melhor que deixar todo pedido "a confirmar").
+      motivos.push(`${rotulo}: conferência da cidade indisponível (${motivo(err)})`);
+    }
+  }
   return c;
+}
+
+/** Em que cidade o ponto fica, segundo o mapa (busca reversa do Nominatim). */
+async function cidadeNoMapa(c: Coord): Promise<string | null> {
+  const q = new URLSearchParams({
+    format: "jsonv2",
+    zoom: "10",
+    lat: String(c.lat),
+    lon: String(c.lon),
+    "accept-language": "pt-BR",
+  });
+  const j = await naFila(() =>
+    buscarJSON<{ address?: Record<string, string> }>(`https://nominatim.openstreetmap.org/reverse?${q}`, {
+      headers: { "User-Agent": USER_AGENT, Accept: "application/json" },
+    }),
+  );
+  const a = j.address ?? {};
+  return a.city || a.town || a.municipality || a.village || null;
 }
 
 // ---------- 2. Nominatim (plano B) ----------
@@ -281,10 +314,11 @@ export async function calcularFreteServidor(e: EnderecoFrete): Promise<Resultado
     const motivos: Motivos = [];
     // 1º a coordenada que o navegador trouxe; se não veio ou não passou na conferência, tenta daqui.
     const doNavegador = e.coordCep
-      ? validarPontoCep(e.coordCep, e.cidade, o, motivos, "cep (navegador)")
+      ? await validarPontoCep(e.coordCep, e.cidade, o, motivos, "cep (navegador)")
       : null;
     if (!e.coordCep && soDigitos(e.cep).length === 8) motivos.push("cep (navegador): sem coordenada");
-    const porCep = doNavegador ?? (await coordPorCep(e.cep, e.cidade, o, motivos));
+    // Se o navegador já trouxe a coordenada da base de CEPs, consultar de novo daqui daria o mesmo ponto.
+    const porCep = e.coordCep ? doNavegador : await coordPorCep(e.cep, e.cidade, o, motivos);
     const porNome = porCep ? null : await geocodificarPorNome(e, o, motivos);
     const destino = porCep ?? porNome;
     if (!destino) throw new Error(`localização [${motivos.join("; ")}]`);
