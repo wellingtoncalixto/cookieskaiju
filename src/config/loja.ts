@@ -52,6 +52,9 @@ export const loja = {
     instagram: "cookieskaiju",
   },
 
+  /** A sacola é apagada se o cliente ficar este tempo sem voltar ao site (cada visita renova o prazo). */
+  sacolaExpiraHoras: 24,
+
   /** Peso de todos os cookies, em gramas. */
   pesoGramas: 120,
 
@@ -95,23 +98,27 @@ export const loja = {
     },
   ] satisfies Produto[] as Produto[],
 
-  /** Janelas de entrega (sábado e domingo). */
+  /** Faixas de horário para agendar a entrega ou a retirada (de 1 em 1 hora, dentro do funcionamento). */
   janelas: [
-    { id: "tarde", inicio: 13 * 60, fim: 15 * 60, nome: "13h às 15h" },
-    { id: "noite", inicio: 18 * 60, fim: 20 * 60, nome: "18h às 20h" },
+    { id: "13h", inicio: 13 * 60, fim: 14 * 60, nome: "13h às 14h" },
+    { id: "14h", inicio: 14 * 60, fim: 15 * 60, nome: "14h às 15h" },
+    { id: "15h", inicio: 15 * 60, fim: 16 * 60, nome: "15h às 16h" },
+    { id: "16h", inicio: 16 * 60, fim: 17 * 60, nome: "16h às 17h" },
+    { id: "17h", inicio: 17 * 60, fim: 18 * 60, nome: "17h às 18h" },
   ] satisfies Janela[] as Janela[],
 
+  /** Funcionamento: sábado e domingo, das 13h às 18h, com delivery. O pedido nunca é bloqueado. */
   agenda: {
-    /** Dia da semana (0 = domingo … 6 = sábado) e minuto em que a agenda abre: quarta 9h. */
-    abreDia: 3,
-    abreMin: 9 * 60,
-    /** Sexta 12h. */
-    fechaDia: 5,
-    fechaMin: 12 * 60,
-    /** Sábado e domingo: pronta-entrega a partir das 8h. */
-    prontaEntregaDesdeMin: 8 * 60,
-    /** Pronta-entrega: a janela precisa começar daqui a pelo menos X minutos. */
+    /** Dias abertos (0 = domingo … 6 = sábado). */
+    diasAbertos: [6, 0],
+    abreMin: 13 * 60,
+    fechaMin: 18 * 60,
+    /** Com a loja aberta, "O quanto antes" é aceito até este horário. */
+    agoraAteMin: 17 * 60 + 30,
+    /** Uma faixa agendada precisa começar daqui a pelo menos X minutos. */
     antecedenciaMin: 60,
+    /** Quantos dias de funcionamento aparecem para agendar (4 = os dois próximos fins de semana). */
+    diasParaAgendar: 4,
   },
 
   frete: {

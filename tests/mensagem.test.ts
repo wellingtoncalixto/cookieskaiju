@@ -7,9 +7,8 @@ const base: PedidoMensagem = {
     { nome: "Explosão de Nutella", quantidade: 2, preco: 18 },
     { nome: "Duplo Maltine", quantidade: 1, preco: 23 },
   ],
-  prontaEntrega: false,
   teste: false,
-  horario: "Sábado, 17/10 · 18h às 20h",
+  horario: "Sábado, 17/10 · 14h às 15h",
   endereco: {
     cep: "13800-000",
     rua: "Rua Exemplo",
@@ -54,7 +53,7 @@ describe("montarMensagemWhatsApp", () => {
       modalidade: "retirada",
       taxa: { tipo: "retirada", valor: 0 },
     });
-    expect(msg).toContain("*Retirada*\nSábado, 17/10 · 18h às 20h\nLocal: a combinar com a loja");
+    expect(msg).toContain("*Retirada*\nSábado, 17/10 · 14h às 15h\nLocal: a combinar com a loja");
     expect(msg).toContain("*TOTAL: R$ 59,00*");
     expect(msg).toContain("*Pagamento:* Cartão por aproximação (na retirada)");
     expect(msg).not.toContain("Rua Exemplo");
@@ -94,9 +93,9 @@ describe("montarMensagemWhatsApp", () => {
     expect(pix).toMatchSnapshot();
   });
 
-  it("pronta-entrega", () => {
-    const msg = montarMensagemWhatsApp({ ...base, prontaEntrega: true });
-    expect(msg.split("\n")[1]).toBe("_Pronta-entrega (sujeito a estoque)_");
+  it("pedido para agora", () => {
+    const msg = montarMensagemWhatsApp({ ...base, horario: "O quanto antes (hoje, 17/10)" });
+    expect(msg).toContain("*Entrega*\nO quanto antes (hoje, 17/10)\n");
     expect(msg).toMatchSnapshot();
   });
 

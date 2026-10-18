@@ -9,7 +9,7 @@ exports[`montarMensagemWhatsApp > dinheiro com troco 1`] = `
 Subtotal: R$ 59,00
 
 *Entrega*
-Sábado, 17/10 · 18h às 20h
+Sábado, 17/10 · 14h às 15h
 Rua Exemplo, 123 · Apto 4
 Centro · Mogi Mirim/SP · CEP 13800-000
 Referência: portão preto
@@ -33,7 +33,7 @@ exports[`montarMensagemWhatsApp > dinheiro sem troco, Pix e observação 1`] = `
 Subtotal: R$ 59,00
 
 *Entrega*
-Sábado, 17/10 · 18h às 20h
+Sábado, 17/10 · 14h às 15h
 Rua Exemplo, 123 · Apto 4
 Centro · Mogi Mirim/SP · CEP 13800-000
 Referência: portão preto
@@ -59,7 +59,7 @@ exports[`montarMensagemWhatsApp > frete a confirmar 1`] = `
 Subtotal: R$ 59,00
 
 *Entrega*
-Sábado, 17/10 · 18h às 20h
+Sábado, 17/10 · 14h às 15h
 Rua Exemplo, 123 · Apto 4
 Centro · Mogi Mirim/SP · CEP 13800-000
 Referência: portão preto
@@ -83,7 +83,7 @@ exports[`montarMensagemWhatsApp > frete calculado 1`] = `
 Subtotal: R$ 59,00
 
 *Entrega*
-Sábado, 17/10 · 18h às 20h
+Sábado, 17/10 · 14h às 15h
 Rua Exemplo, 123 · Apto 4
 Centro · Mogi Mirim/SP · CEP 13800-000
 Referência: portão preto
@@ -107,7 +107,7 @@ exports[`montarMensagemWhatsApp > frete grátis pela promoção 1`] = `
 Subtotal: R$ 59,00
 
 *Entrega*
-Sábado, 17/10 · 18h às 20h
+Sábado, 17/10 · 14h às 15h
 Rua Exemplo, 123 · Apto 4
 Centro · Mogi Mirim/SP · CEP 13800-000
 Referência: portão preto
@@ -132,7 +132,7 @@ _PEDIDO DE TESTE_
 Subtotal: R$ 59,00
 
 *Entrega*
-Sábado, 17/10 · 18h às 20h
+Sábado, 17/10 · 14h às 15h
 Rua Exemplo, 123 · Apto 4
 Centro · Mogi Mirim/SP · CEP 13800-000
 Referência: portão preto
@@ -147,9 +147,8 @@ Rota: https://www.google.com/maps/dir/?api=1&travelmode=driving&origin=13808-113
 Maria Souza"
 `;
 
-exports[`montarMensagemWhatsApp > pronta-entrega 1`] = `
+exports[`montarMensagemWhatsApp > pedido para agora 1`] = `
 "*NOVO PEDIDO · COOKIES KAIJU*
-_Pronta-entrega (sujeito a estoque)_
 
 *Cookies*
 2x Explosão de Nutella · R$ 36,00
@@ -157,7 +156,7 @@ _Pronta-entrega (sujeito a estoque)_
 Subtotal: R$ 59,00
 
 *Entrega*
-Sábado, 17/10 · 18h às 20h
+O quanto antes (hoje, 17/10)
 Rua Exemplo, 123 · Apto 4
 Centro · Mogi Mirim/SP · CEP 13800-000
 Referência: portão preto
@@ -181,7 +180,7 @@ exports[`montarMensagemWhatsApp > retirada: sem endereço, sem rota e sem taxa 1
 Subtotal: R$ 59,00
 
 *Retirada*
-Sábado, 17/10 · 18h às 20h
+Sábado, 17/10 · 14h às 15h
 Local: a combinar com a loja
 
 *TOTAL: R$ 59,00*

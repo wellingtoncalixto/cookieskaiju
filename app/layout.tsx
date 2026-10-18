@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, League_Spartan, Manrope, Permanent_Marker } from "next/font/google";
 import { JsonLd } from "@/components/Basicos";
 import { HidratarSacola } from "@/components/HidratarSacola";
+import { WhatsAppFlutuante } from "@/components/WhatsAppFlutuante";
 import { SITE_URL, loja } from "@/config/loja";
 import { jsonLdPadaria } from "@/lib/seo";
 import "./globals.css";
@@ -88,6 +89,7 @@ export default function RootLayout({
         <JsonLd dados={jsonLdPadaria()} />
         <HidratarSacola />
         {children}
+        <WhatsAppFlutuante />
         {modal}
       </body>
     </html>

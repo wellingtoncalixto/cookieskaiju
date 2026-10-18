@@ -11,6 +11,7 @@ import { ResumoSacola } from "@/components/ResumoSacola";
 import { StatusAgenda } from "@/components/StatusAgenda";
 import { loja, menorPreco } from "@/config/loja";
 import { brl } from "@/lib/formato";
+import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { promoVigente } from "@/lib/frete";
 import { jsonLdSite } from "@/lib/seo";
 import { agoraSaoPaulo, isoData } from "@/lib/tempo";
@@ -24,7 +25,6 @@ export const metadata: Metadata = {
 };
 
 export default function Home() {
-  const janelas = loja.janelas.map((j) => j.nome.replace(" às ", "–")).join(" · ");
   return (
     <div className="com-barra">
       <JsonLd dados={jsonLdSite()} />
@@ -59,8 +59,8 @@ export default function Home() {
             <span className="v">Sáb e dom</span>
           </li>
           <li className="fact">
-            <span className="k">Janelas</span>
-            <span className="v">{janelas}</span>
+            <span className="k">Horário</span>
+            <span className="v">{HORARIO_FUNCIONAMENTO}</span>
           </li>
           <li className="fact">
             <span className="k">Cookies</span>
@@ -98,9 +98,9 @@ export default function Home() {
                 Maltine e Kinder, a partir de {brl(menorPreco())}.
               </p>
               <p>
-                A agenda de pedidos abre na quarta às 9h e fecha na sexta ao meio-dia. A entrega é aos sábados
-                e domingos, das 13h às 15h ou das 18h às 20h, em Mogi Mirim e Mogi Guaçu. No fim de semana
-                também tem pronta-entrega enquanto houver estoque.
+                Funcionamos aos sábados e domingos, das {HORARIO_FUNCIONAMENTO}, com delivery em Mogi Mirim e
+                Mogi Guaçu. Dá para pedir a qualquer hora: com a loja aberta, para agora; fora do horário,
+                você agenda o pedido para o horário que preferir.
               </p>
               <p>
                 Monte a sacola aqui no site e envie o pedido pelo WhatsApp. O pagamento é na entrega, por Pix,

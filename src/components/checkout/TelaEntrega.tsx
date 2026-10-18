@@ -7,11 +7,11 @@ import { AvisoPrivacidade } from "@/components/Basicos";
 import { CabecalhoEtapa, Carregando, ListaErros, TotalAcao } from "@/components/checkout/Comum";
 import { loja } from "@/config/loja";
 import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
-import { chaveHorario, horarioValido } from "@/lib/agenda";
+import { CHAVE_AGORA, chaveHorario, horarioValido } from "@/lib/agenda";
 import { mascaraCep, normalizar, soDigitos } from "@/lib/formato";
 import { textosTaxa, type EstadoFrete } from "@/lib/frete";
 import type { Endereco } from "@/lib/mensagem";
-import { DIAS, capitalizar, dataDeIso, ddmm } from "@/lib/tempo";
+import { DIAS, DIAS_CURTOS, capitalizar, dataDeIso, ddmm } from "@/lib/tempo";
 import { usePedido } from "@/store/pedido";
 import mascoteSono from "../../../public/brand/mascote-sonolento.png";
 
@@ -25,17 +25,17 @@ export function TelaEntrega() {
   const retirada = loja.retirada.habilitada && pedido.modalidade === "retirada";
   const invalido = (campo: string) => (tentou && erros.entrega.campos.includes(campo)) || undefined;
 
-  // Se a agenda mudou e o horário escolhido sumiu, limpa; se só há uma opção, escolhe.
+  // Se o horário escolhido deixou de valer, limpa. Com a loja aberta, já deixa "o quanto antes" marcado.
   useEffect(() => {
     if (!situacao) return;
     const ag = situacao.agenda;
-    const validos = ag.dias.flatMap((d) => d.janelas.map((j) => chaveHorario(d.data, j.id)));
     if (!horarioValido(ag, usePedido.getState().horario))
-      usePedido.getState().definir({ horario: validos.length === 1 ? validos[0] : null });
+      usePedido.getState().definir({ horario: ag.agora ? CHAVE_AGORA : null });
   }, [situacao]);
 
   useFrete(endereco, !retirada);
   const cep = useCep();
+  const [diaEscolhido, setDia] = useState<string | null>(null);
   const cabecalho = (
     <CabecalhoEtapa titulo="Entrega" subtitulo="Etapa 1 de 3" etapa={1} voltarPara="/sacola" />
   );
@@ -50,6 +50,12 @@ export function TelaEntrega() {
   }
 
   const ag = situacao.agenda;
+  // Dia mostrado no seletor: o que o cliente tocou, senão o do horário já escolhido, senão o primeiro.
+  const diaDoHorario = pedido.horario?.split("|")[0];
+  const diaAtivo =
+    ag.dias.find((d) => d.data === diaEscolhido) ??
+    ag.dias.find((d) => d.data === diaDoHorario) ??
+    ag.dias[0];
   const taxa = textosTaxa(resumo.taxa);
   const gratis = resumo.taxa.tipo === "gratis";
 
@@ -112,51 +118,83 @@ export function TelaEntrega() {
             <div className="block-head">
               <h2 id="t-quando">{retirada ? "Quando retirar" : "Quando entregar"}</h2>
             </div>
-            {ag.modo === "fechada" ? (
-              <div className="closed">
-                <Image src={mascoteSono} alt="" width={72} />
-                <p>
-                  <b>Agenda fechada.</b> {situacao.textos.texto} Sua sacola fica guardada neste aparelho até
-                  lá.
-                </p>
-              </div>
-            ) : (
-              <div className="slots">
-                {ag.modo === "estoque" && (
-                  <p className="fmsg">
-                    Pronta-entrega: o pedido depende do estoque do dia e é confirmado pela loja no WhatsApp.
+            <div className="slots">
+              {ag.modo === "fechada" && (
+                <div className="closed">
+                  <Image src={mascoteSono} alt="" width={72} />
+                  <p>
+                    <b>Estamos fechados agora.</b> {situacao.textos.texto}
                   </p>
-                )}
-                {ag.dias.map((d) => {
-                  const data = dataDeIso(d.data);
-                  return (
-                    <fieldset className="slot-day" key={d.data}>
-                      <legend>
-                        {capitalizar(DIAS[data.getUTCDay()])} <span>{ddmm(data)}</span>
-                      </legend>
-                      <div className="chips" data-invalido={invalido("horario")}>
-                        {loja.janelas.map((j) => {
-                          const chave = chaveHorario(d.data, j.id);
-                          return (
-                            <label className="chip" key={chave}>
-                              <input
-                                type="radio"
-                                name="horario"
-                                value={chave}
-                                checked={pedido.horario === chave}
-                                disabled={!d.janelas.some((x) => x.id === j.id)}
-                                onChange={() => definir({ horario: chave })}
-                              />
-                              <span>{j.nome}</span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </fieldset>
-                  );
-                })}
-              </div>
-            )}
+                </div>
+              )}
+              {ag.agora && (
+                <div className="chips" data-invalido={invalido("horario")}>
+                  <label className="chip">
+                    <input
+                      type="radio"
+                      name="horario"
+                      value={CHAVE_AGORA}
+                      checked={pedido.horario === CHAVE_AGORA}
+                      onChange={() => definir({ horario: CHAVE_AGORA })}
+                    />
+                    <span>
+                      O quanto antes<em>hoje, até as 18h</em>
+                    </span>
+                  </label>
+                </div>
+              )}
+              {ag.agora && <p className="fmsg">Ou agende um horário:</p>}
+              {/* Seletor de dias: as faixas aparecem só para o dia escolhido. */}
+              <fieldset className="slot-day">
+                <legend className="sr-only">Dia</legend>
+                <div className="dias" role="radiogroup" aria-label="Dia">
+                  {ag.dias.map((d) => {
+                    const data = dataDeIso(d.data);
+                    return (
+                      <label className="chip" key={d.data}>
+                        <input
+                          type="radio"
+                          name="dia"
+                          value={d.data}
+                          checked={d.data === diaAtivo?.data}
+                          onChange={() => setDia(d.data)}
+                        />
+                        <span>
+                          {d.data === ag.hoje ? "Hoje" : DIAS_CURTOS[data.getUTCDay()]}
+                          <em>{ddmm(data)}</em>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+              {diaAtivo && (
+                <fieldset className="slot-day">
+                  <legend className="sr-only">
+                    Horário em {capitalizar(DIAS[dataDeIso(diaAtivo.data).getUTCDay()])},{" "}
+                    {ddmm(dataDeIso(diaAtivo.data))}
+                  </legend>
+                  <div className="chips" data-invalido={invalido("horario")}>
+                    {loja.janelas.map((j) => {
+                      const chave = chaveHorario(diaAtivo.data, j.id);
+                      return (
+                        <label className="chip" key={chave}>
+                          <input
+                            type="radio"
+                            name="horario"
+                            value={chave}
+                            checked={pedido.horario === chave}
+                            disabled={!diaAtivo.janelas.some((x) => x.id === j.id)}
+                            onChange={() => definir({ horario: chave })}
+                          />
+                          <span>{j.nome}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              )}
+            </div>
           </section>
 
           {retirada ? (
@@ -251,7 +289,6 @@ export function TelaEntrega() {
           <button
             className="btn btn-primary btn-wide"
             type="button"
-            aria-disabled={ag.modo === "fechada" || undefined}
             onClick={() => {
               pedido.marcarTentativa("entrega");
               if (!erros.entrega.mensagens.length) router.push("/pedido/pagamento");

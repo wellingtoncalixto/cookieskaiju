@@ -23,9 +23,7 @@ export function useCheckout() {
   const pedido = usePedido();
   const resumo = useResumoPedido(situacao?.agenda ?? null);
 
-  const ctx = situacao
-    ? { quantidade: resumo.quantidade, agenda: situacao.agenda, textoAgenda: situacao.textos.texto }
-    : null;
+  const ctx = situacao ? { quantidade: resumo.quantidade, agenda: situacao.agenda } : null;
   const dados = {
     modalidade: pedido.modalidade,
     horario: pedido.horario,

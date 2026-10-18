@@ -51,11 +51,6 @@ export function Rodape() {
             <li>
               <Link href="/">Cardápio</Link>
             </li>
-            {loja.produtos.map((p) => (
-              <li key={p.slug}>
-                <Link href={`/cookies/${p.slug}`}>Cookie {p.nome}</Link>
-              </li>
-            ))}
             <li>
               <Link href="/como-funciona">Como funciona</Link>
             </li>

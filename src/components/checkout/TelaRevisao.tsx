@@ -9,7 +9,8 @@ import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
 import { brl } from "@/lib/formato";
 import { textosTaxa } from "@/lib/frete";
 import { linhaPagamento, linkWhatsApp, montarMensagemWhatsApp } from "@/lib/mensagem";
-import { DIAS_CURTOS, dataDeIso, ddmm, diaPorExtenso } from "@/lib/tempo";
+import { CHAVE_AGORA, textoHorario } from "@/lib/agenda";
+import { DIAS_CURTOS, dataDeIso, ddmm } from "@/lib/tempo";
 import { linhasSacola, useSacola } from "@/store/sacola";
 
 export function TelaRevisao() {
@@ -39,10 +40,11 @@ export function TelaRevisao() {
   const e = pedido.endereco;
   const uf = (e.uf || loja.uf).toUpperCase();
   const linhas = linhasSacola(itens);
-  const [dataIso, janelaId] = (pedido.horario ?? "|").split("|");
+  const paraAgora = pedido.horario === CHAVE_AGORA;
+  const [dataIso, janelaId] = paraAgora ? ["", ""] : (pedido.horario ?? "|").split("|");
   const janela = loja.janelas.find((j) => j.id === janelaId);
   const data = dataIso ? dataDeIso(dataIso) : null;
-  const horarioTexto = data && janela ? `${diaPorExtenso(data)} · ${janela.nome}` : "";
+  const horarioTexto = textoHorario(situacao.agenda, pedido.horario);
   const taxa = textosTaxa(resumo.taxa);
   const retirada = pedido.modalidade === "retirada";
   const erros = [...c.erros.entrega.mensagens, ...c.erros.pagamento.mensagens];
@@ -50,7 +52,6 @@ export function TelaRevisao() {
   const mensagem = montarMensagemWhatsApp({
     itens: linhas.map((l) => ({ nome: l.produto.nome, quantidade: l.quantidade, preco: l.produto.preco })),
     modalidade: pedido.modalidade,
-    prontaEntrega: situacao.agenda.modo === "estoque",
     teste: situacao.agenda.teste,
     horario: horarioTexto,
     endereco: e,
@@ -72,7 +73,12 @@ export function TelaRevisao() {
               <b>Cookies Kaiju</b>
             </div>
             <div className="when">
-              {data && janela ? (
+              {paraAgora ? (
+                <>
+                  Para agora
+                  <br />O quanto antes
+                </>
+              ) : data && janela ? (
                 <>
                   {DIAS_CURTOS[data.getUTCDay()]} {ddmm(data)}
                   <br />
@@ -108,7 +114,6 @@ export function TelaRevisao() {
               </Link>
             </div>
             <p>{horarioTexto || "Escolha um horário"}</p>
-            {situacao.agenda.modo === "estoque" && <p>Pronta-entrega (sujeito a estoque)</p>}
             {retirada ? (
               <p>Local combinado com a loja pelo WhatsApp</p>
             ) : (

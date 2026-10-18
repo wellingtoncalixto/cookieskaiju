@@ -12,149 +12,145 @@ import {
   somarDias,
 } from "@/lib/tempo";
 
-export type ModoAgenda = "aberta" | "estoque" | "fechada";
+/**
+ * Funcionamento: sábado e domingo, das 13h às 18h, com delivery.
+ * O cliente sempre pode fazer o pedido: com a loja aberta, pode pedir "o quanto antes";
+ * a qualquer momento, pode agendar uma faixa de horário nos próximos dias de funcionamento.
+ */
+
+export type ModoAgenda = "aberta" | "fechada";
 
 export type DiaEntrega = {
   /** AAAA-MM-DD (data em São Paulo). */
   data: string;
   /** 0 = domingo … 6 = sábado. */
   diaSemana: number;
-  /** Janelas disponíveis neste dia. */
+  /** Faixas que ainda dá para agendar neste dia. */
   janelas: Janela[];
 };
 
 export type Agenda = {
+  /** A loja está funcionando neste momento? */
   modo: ModoAgenda;
   teste: boolean;
+  /** "O quanto antes" disponível agora. */
+  agora: boolean;
+  /** AAAA-MM-DD de hoje em São Paulo (data do pedido "o quanto antes"). */
+  hoje: string;
+  /** Dias e faixas para agendar. */
   dias: DiaEntrega[];
-  /** Instante real (ms) em que a agenda aberta fecha. */
+  /** Instante real (ms) em que a loja fecha hoje, quando aberta. */
   fechaEm: number | null;
-  /** Instante real (ms) em que algo volta a abrir, quando fechada. */
+  /** Instante real (ms) da próxima abertura, quando fechada. */
   abreEm: number | null;
-  /** O que abre em `abreEm`: a pronta-entrega do fim de semana ou a agenda de quarta. */
-  proxima: "estoque" | "agenda" | null;
 };
+
+/** Chave do horário "o quanto antes". As faixas agendadas usam "AAAA-MM-DD|id". */
+export const CHAVE_AGORA = "agora";
 
 type Opcoes = {
   modoTeste?: boolean;
   config?: Pick<typeof loja, "agenda" | "janelas">;
 };
 
-/**
- * Calcula a situação da agenda num instante.
- * Todas as contas usam o horário de São Paulo, independente do fuso do aparelho.
- */
+/** Calcula a situação da loja num instante, sempre no horário de São Paulo. */
 export function calcularAgenda(agora: Date | number, opcoes: Opcoes = {}): Agenda {
   const { agenda: A, janelas } = opcoes.config ?? loja;
+  const teste = !!opcoes.modoTeste;
   const parede = paredeSP(agora);
   const dow = parede.getUTCDay();
   const min = minutosDoDia(parede);
-  const todas = () => janelas.map((j) => ({ ...j }));
-  const dia = (offset: number, js: Janela[]): DiaEntrega => {
-    const d = somarDias(parede, offset);
-    return { data: isoData(d), diaSemana: d.getUTCDay(), janelas: js };
-  };
+  const abertoNoDia = (d: number) => (A.diasAbertos as readonly number[]).includes(d);
   const em = (offsetDias: number, minuto: number) =>
     instanteDaParede(new Date(inicioDoDia(parede) + offsetDias * 86_400_000 + minuto * 60_000));
-  const base = { teste: false, fechaEm: null, abreEm: null, proxima: null } as const;
 
-  // Próximo sábado (hoje, se já for sábado) e o domingo seguinte.
-  const offSabado = (6 - dow + 7) % 7;
+  const aberta = abertoNoDia(dow) && min >= A.abreMin && min < A.fechaMin;
 
-  if (opcoes.modoTeste) {
-    return {
-      ...base,
-      modo: "aberta",
-      teste: true,
-      dias: [dia(offSabado, todas()), dia(offSabado + 1, todas())],
-    };
+  // Próximos dias de funcionamento com alguma faixa livre (hoje só as que começam com antecedência).
+  const dias: DiaEntrega[] = [];
+  // Procura até 8 semanas à frente (folga para qualquer valor razoável de diasParaAgendar).
+  for (let off = 0; off < 56 && dias.length < A.diasParaAgendar; off++) {
+    const d = somarDias(parede, off);
+    if (!abertoNoDia(d.getUTCDay())) continue;
+    const livres = janelas
+      .filter((j) => teste || off > 0 || j.inicio - A.antecedenciaMin >= min)
+      .map((j) => ({ ...j }));
+    if (livres.length) dias.push({ data: isoData(d), diaSemana: d.getUTCDay(), janelas: livres });
   }
 
-  const aberta =
-    (dow === A.abreDia && min >= A.abreMin) ||
-    (dow > A.abreDia && dow < A.fechaDia) ||
-    (dow === A.fechaDia && min < A.fechaMin);
-
-  if (aberta) {
-    return {
-      ...base,
-      modo: "aberta",
-      fechaEm: em(A.fechaDia - dow, A.fechaMin),
-      dias: [dia(offSabado, todas()), dia(offSabado + 1, todas())],
-    };
+  let abreEm: number | null = null;
+  if (!aberta) {
+    if (abertoNoDia(dow) && min < A.abreMin) abreEm = em(0, A.abreMin);
+    else
+      for (let off = 1; off <= 7; off++)
+        if (abertoNoDia(somarDias(parede, off).getUTCDay())) {
+          abreEm = em(off, A.abreMin);
+          break;
+        }
   }
 
-  if (dow === 6 || dow === 0) {
-    if (min < A.prontaEntregaDesdeMin) {
-      return {
-        ...base,
-        modo: "fechada",
-        abreEm: em(0, A.prontaEntregaDesdeMin),
-        proxima: "estoque",
-        dias: [],
-      };
-    }
-    const dias = [
-      dia(
-        0,
-        todas().filter((j) => j.inicio - A.antecedenciaMin >= min),
-      ),
-    ];
-    if (dow === 6) dias.push(dia(1, todas()));
-    const comJanelas = dias.filter((d) => d.janelas.length > 0);
-    if (comJanelas.length) return { ...base, modo: "estoque", dias: comJanelas };
-  }
-
-  if (dow === A.fechaDia && min >= A.fechaMin) {
-    return { ...base, modo: "fechada", abreEm: em(1, A.prontaEntregaDesdeMin), proxima: "estoque", dias: [] };
-  }
-
-  let off = (A.abreDia - dow + 7) % 7;
-  if (off === 0 && min >= A.abreMin) off = 7;
-  return { ...base, modo: "fechada", abreEm: em(off, A.abreMin), proxima: "agenda", dias: [] };
+  return {
+    modo: aberta || teste ? "aberta" : "fechada",
+    teste,
+    agora: teste || (aberta && min <= A.agoraAteMin),
+    hoje: isoData(parede),
+    dias,
+    fechaEm: aberta ? em(0, A.fechaMin) : null,
+    abreEm: aberta || teste ? null : abreEm,
+  };
 }
 
-/** Chave estável de uma escolha de horário: "2026-10-17|noite". */
+/** Chave estável de uma faixa agendada: "2026-10-24|14h". */
 export const chaveHorario = (data: string, janelaId: string) => `${data}|${janelaId}`;
 
-/** Confere se a chave de horário escolhida ainda é válida na agenda atual. */
+/** A escolha de horário ainda vale na situação atual? */
 export function horarioValido(agenda: Agenda, chave: string | null | undefined): boolean {
   if (!chave) return false;
+  if (chave === CHAVE_AGORA) return agenda.agora;
   return agenda.dias.some((d) => d.janelas.some((j) => chaveHorario(d.data, j.id) === chave));
 }
 
+/** Data (AAAA-MM-DD) do pedido para a escolha de horário: hoje, se for "o quanto antes". */
+export const dataDoHorario = (agenda: Agenda | null, chave: string | null | undefined) =>
+  chave === CHAVE_AGORA ? (agenda?.hoje ?? null) : (chave?.split("|")[0] ?? null);
+
+const hora = (min: number) => `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, "0") : ""}`;
+
 /** Textos do status: selo, contagem regressiva e frase. Usados na home e na etapa de entrega. */
-export function textosAgenda(ag: Agenda, agora: number) {
+export function textosAgenda(ag: Agenda, agora: number, A: (typeof loja)["agenda"] = loja.agenda) {
   if (ag.teste) {
-    const [a, b] = ag.dias.map((d) => dataDeIso(d.data));
-    return {
-      selo: "Modo teste",
-      contagem: "Horários liberados.",
-      texto: `Pedidos para ${DIAS[a.getUTCDay()]} ${ddmm(a)} e ${DIAS[b.getUTCDay()]} ${ddmm(b)}, a qualquer hora.`,
-    };
+    return { selo: "Modo teste", contagem: "", texto: "Pedidos liberados a qualquer hora (modo teste)." };
   }
   if (ag.modo === "aberta") {
-    const [a, b] = ag.dias.map((d) => dataDeIso(d.data));
     return {
-      selo: "Agenda aberta",
+      selo: "Aberto agora",
       contagem: `Fecha em ${contagem(ag.fechaEm! - agora)}.`,
-      texto: `Pedidos para sábado ${ddmm(a)} e domingo ${ddmm(b)}.`,
-    };
-  }
-  if (ag.modo === "estoque") {
-    return {
-      selo: "Pronta-entrega",
-      contagem: "",
-      texto: "Entregamos neste fim de semana enquanto houver cookies no estoque.",
+      texto: ag.agora
+        ? `Delivery até as ${hora(A.fechaMin)}. Peça para agora ou agende um horário.`
+        : `Pedidos para agora vão até as ${hora(A.agoraAteMin)}. Agende o seu para o próximo dia.`,
     };
   }
   const abre = paredeSP(ag.abreEm!);
+  const hojeMesmo = isoData(abre) === ag.hoje;
+  const quando = hojeMesmo ? "hoje" : `${DIAS[abre.getUTCDay()]}, ${ddmm(abre)},`;
   return {
-    selo: "Agenda fechada",
+    selo: "Fechado agora",
     contagem: `Abre em ${contagem(ag.abreEm! - agora)}.`,
-    texto:
-      ag.proxima === "estoque"
-        ? `Pronta-entrega volta ${DIAS[abre.getUTCDay()]} às ${abre.getUTCHours()}h, conforme estoque.`
-        : `A próxima agenda abre ${DIAS[abre.getUTCDay()]}, ${ddmm(abre)}, às ${abre.getUTCHours()}h.`,
+    texto: `Abrimos ${quando} às ${hora(A.abreMin)}. Você já pode fazer o pedido e agendar o horário.`,
   };
 }
+
+/** "Sábado, 24/10 · 14h às 15h" ou "O quanto antes (hoje, 18/10)". */
+export function textoHorario(agenda: Agenda | null, chave: string | null | undefined): string {
+  if (!chave) return "";
+  if (chave === CHAVE_AGORA)
+    return agenda ? `O quanto antes (hoje, ${ddmm(dataDeIso(agenda.hoje))})` : "O quanto antes";
+  const [data, id] = chave.split("|");
+  const j = loja.janelas.find((x) => x.id === id);
+  if (!data || !j) return "";
+  const d = dataDeIso(data);
+  return `${DIAS[d.getUTCDay()].replace(/^./, (c) => c.toUpperCase())}, ${ddmm(d)} · ${j.nome}`;
+}
+
+/** "13h às 18h" (horário de funcionamento, para os textos do site). */
+export const HORARIO_FUNCIONAMENTO = `${hora(loja.agenda.abreMin)} às ${hora(loja.agenda.fechaMin)}`;

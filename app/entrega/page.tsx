@@ -3,13 +3,14 @@ import Link from "next/link";
 import { CabecalhoSite, Rodape } from "@/components/Moldura";
 import { loja } from "@/config/loja";
 import { brl } from "@/lib/formato";
+import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { promoVigente, valorFrete } from "@/lib/frete";
 import { agoraSaoPaulo, isoData } from "@/lib/tempo";
 
 export const metadata: Metadata = {
   title: "Entrega de cookies em Mogi Mirim e Mogi Guaçu",
   description:
-    "Entregamos cookies aos sábados e domingos, das 13h às 15h ou das 18h às 20h, em Mogi Mirim e Mogi Guaçu. Taxa a partir de R$ 3,00 e frete grátis na promoção.",
+    "Entregamos cookies aos sábados e domingos, das 13h às 18h, em Mogi Mirim e Mogi Guaçu. Peça para agora ou agende. Taxa a partir de R$ 3,00 e frete grátis na promoção.",
   alternates: { canonical: "/entrega" },
 };
 
@@ -31,11 +32,9 @@ export default function Entrega() {
         <section className="prose" aria-labelledby="t-janelas">
           <h2 id="t-janelas">Dias e horários</h2>
           <ul>
-            {loja.janelas.map((j) => (
-              <li key={j.id}>Sábado e domingo, das {j.nome}.</li>
-            ))}
-            <li>Pedidos com agendamento de quarta às 9h até sexta às 12h.</li>
-            <li>No fim de semana, pronta-entrega a partir das 8h, conforme o estoque.</li>
+            <li>Sábado e domingo, das {HORARIO_FUNCIONAMENTO}, com delivery.</li>
+            <li>Com a loja aberta, você pede para agora e recebe o quanto antes.</li>
+            <li>Fora do horário, você faz o pedido do mesmo jeito e agenda o horário que preferir.</li>
           </ul>
         </section>
 
@@ -75,7 +74,7 @@ export default function Entrega() {
             <h2 id="t-retirada">Retirada</h2>
             <p>
               Prefere buscar? Escolha “Retirada” ao finalizar o pedido: não há taxa de entrega e você retira
-              nos mesmos dias e janelas. {loja.retirada.aviso}
+              nos mesmos dias e horários. {loja.retirada.aviso}
             </p>
           </section>
         )}

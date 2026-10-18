@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import type { Agenda } from "@/lib/agenda";
+import { dataDoHorario, type Agenda } from "@/lib/agenda";
 import { avaliarPromo, dicaPromo, resolverTaxa, type Taxa } from "@/lib/frete";
 import { agoraSaoPaulo, isoData } from "@/lib/tempo";
 import { usePedido } from "@/store/pedido";
@@ -22,8 +22,8 @@ export function useResumoPedido(agenda: Agenda | null) {
       const taxa: Taxa = { tipo: "retirada", valor: 0 };
       return { quantidade, subtotal, promo: null, taxa, dica: "", total: subtotal };
     }
-    // A promoção compara com a data de ENTREGA: a escolhida, ou a primeira disponível.
-    const dataEntrega = horario?.split("|")[0] ?? agenda?.dias[0]?.data ?? isoData(agoraSaoPaulo());
+    // A promoção compara com a data de ENTREGA: a escolhida (hoje, se for "o quanto antes") ou a próxima.
+    const dataEntrega = dataDoHorario(agenda, horario) ?? agenda?.dias[0]?.data ?? isoData(agoraSaoPaulo());
     const promo = cidade ? avaliarPromo({ cidade, quantidade, dataEntrega }) : null;
     const taxa = resolverTaxa(frete, promo);
     return {

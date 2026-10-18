@@ -38,12 +38,12 @@ export function jsonLdPadaria() {
       addressCountry: "BR",
     },
     areaServed: loja.areaAtendida.map((name) => ({ "@type": "City", name })),
-    openingHoursSpecification: loja.janelas.map((j) => ({
+    openingHoursSpecification: {
       "@type": "OpeningHoursSpecification",
       dayOfWeek: ["https://schema.org/Saturday", "https://schema.org/Sunday"],
-      opens: hhmm(j.inicio),
-      closes: hhmm(j.fim),
-    })),
+      opens: hhmm(loja.agenda.abreMin),
+      closes: hhmm(loja.agenda.fechaMin),
+    },
     hasMenu: {
       "@type": "Menu",
       name: "Cardápio Cookies Kaiju",

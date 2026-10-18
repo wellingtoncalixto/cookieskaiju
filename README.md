@@ -41,12 +41,12 @@ As variáveis `NEXT_PUBLIC_*` entram no build: depois de mudar alguma, publique 
 
 ## Modo teste
 
-Para testar pedidos fora do horário da agenda:
+Para testar a opção "o quanto antes" fora do horário de funcionamento:
 
 1. Coloque `NEXT_PUBLIC_MODO_TESTE=true` (no `.env.local` ou nas variáveis da Vercel).
 2. Rode o build/publique de novo.
 
-O selo da home passa a mostrar "Modo teste", o próximo sábado e domingo ficam liberados com todas as janelas, e a mensagem do WhatsApp recebe a linha `_PEDIDO DE TESTE_`.
+O selo da home passa a mostrar "Modo teste", a loja aparece como aberta (com "o quanto antes" e todas as faixas de horário liberadas), e a mensagem do WhatsApp recebe a linha `_PEDIDO DE TESTE_`.
 
 **Antes de divulgar o site, volte para `false` e publique de novo.**
 
@@ -57,7 +57,7 @@ Tudo fica em um arquivo: [`src/config/loja.ts`](src/config/loja.ts).
 - **Preço:** mude `preco` do sabor.
 - **Esgotado:** mude `disponivel` para `false`. O sabor aparece com a etiqueta "Esgotado" e não pode ser adicionado.
 - **Novo sabor:** adicione um item em `produtos` e coloque a foto em `public/cookies/{slug}.jpg` (e o cartaz em `public/cookies/posters/{slug}-cartaz.jpg`).
-- **Agenda e janelas:** `agenda` e `janelas`.
+- **Funcionamento e horários:** `agenda` (dias abertos, abertura, fechamento, até que horas aceita "o quanto antes", antecedência mínima e quantos dias aparecem para agendar) e `janelas` (as faixas de 1 hora para agendar). O cliente sempre pode fazer o pedido: fora do horário, ele agenda.
 - **Frete:** `frete` (valor base, km incluídos e valor por km).
 - **Promoção:** `promo` (data-limite da entrega e quantidade mínima por cidade). Depois da data, a faixa some sozinha.
 

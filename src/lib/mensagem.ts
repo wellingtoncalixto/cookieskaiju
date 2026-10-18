@@ -17,9 +17,8 @@ export type PedidoMensagem = {
   itens: { nome: string; quantidade: number; preco: number }[];
   /** Ausente = entrega. */
   modalidade?: "entrega" | "retirada";
-  prontaEntrega: boolean;
   teste: boolean;
-  /** "Sábado, 17/10 · 18h às 20h" */
+  /** "Sábado, 24/10 · 14h às 15h" ou "O quanto antes (hoje, 18/10)" */
   horario: string;
   endereco: Endereco;
   taxa: Taxa;
@@ -81,7 +80,6 @@ export function montarMensagemWhatsApp(p: PedidoMensagem): string {
   const total = subtotal + (p.taxa.valor ?? 0);
 
   const L: string[] = ["*NOVO PEDIDO · COOKIES KAIJU*"];
-  if (p.prontaEntrega) L.push("_Pronta-entrega (sujeito a estoque)_");
   if (p.teste) L.push("_PEDIDO DE TESTE_");
 
   L.push("", "*Cookies*");

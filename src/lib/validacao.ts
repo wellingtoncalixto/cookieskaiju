@@ -34,8 +34,6 @@ const juntar = (...lista: Erros[]): Erros => ({
 export type Contexto = {
   quantidade: number;
   agenda: Agenda;
-  /** Texto do status da agenda, usado no aviso de agenda fechada. */
-  textoAgenda: string;
 };
 
 type DadosEntrega = {
@@ -46,22 +44,19 @@ type DadosEntrega = {
 };
 type DadosPagamento = { nome: string; pagamento: string | null };
 
-export function errosSacola({ quantidade, agenda, textoAgenda }: Contexto): Erros {
-  const m: string[] = [];
-  if (!quantidade) m.push("Sua sacola está vazia.");
-  if (agenda.modo === "fechada") m.push(`A agenda está fechada agora. ${textoAgenda}`);
-  return { mensagens: m, campos: [] };
+export function errosSacola({ quantidade }: Contexto): Erros {
+  // A loja fechada não impede o pedido: o cliente agenda um horário.
+  return { mensagens: quantidade ? [] : ["Sua sacola está vazia."], campos: [] };
 }
 
 export function errosEntrega(ctx: Contexto, dados: DadosEntrega): Erros {
   const retirada = dados.modalidade === "retirada";
-  const horario: Erros =
-    ctx.agenda.modo !== "fechada" && !horarioValido(ctx.agenda, dados.horario)
-      ? {
-          mensagens: [`Escolha o dia e a janela de ${retirada ? "retirada" : "entrega"}.`],
-          campos: ["horario"],
-        }
-      : { mensagens: [], campos: [] };
+  const horario: Erros = horarioValido(ctx.agenda, dados.horario)
+    ? { mensagens: [], campos: [] }
+    : {
+        mensagens: [`Escolha quando quer ${retirada ? "retirar" : "receber"} o pedido.`],
+        campos: ["horario"],
+      };
   const endereco: Erros = retirada
     ? { mensagens: [], campos: [] }
     : deZod(esquemaEndereco.safeParse(dados.endereco), ["rua", "numero", "bairro", "cidade"]);

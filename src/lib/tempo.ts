@@ -79,3 +79,7 @@ export function contagem(ms: number): string {
   if (h) return `${h}h ${pad(mm)}min`;
   return `${mm}min`;
 }
+
+/** A sacola passou do prazo? (última visita ou mudança há mais de `horas`). */
+export const sacolaExpirada = (ultimaAtividade: number, agora: number, horas: number) =>
+  agora - ultimaAtividade > horas * 3600_000;

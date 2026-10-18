@@ -6,6 +6,7 @@ import { JsonLd } from "@/components/Basicos";
 import { FichaProduto } from "@/components/FichaProduto";
 import { CabecalhoSite, Rodape } from "@/components/Moldura";
 import { imagemProduto, loja, posterProduto, produtoPorSlug } from "@/config/loja";
+import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { brl } from "@/lib/formato";
 import { jsonLdProduto } from "@/lib/seo";
 
@@ -68,9 +69,10 @@ export default async function PaginaCookie({ params }: Props) {
               lotes em Mogi Mirim, para chegar macio por dentro e com bastante recheio.
             </p>
             <p>
-              Peça pelo site até sexta ao meio-dia e receba no sábado ou no domingo, das 13h às 15h ou das 18h
-              às 20h. Entregamos em Mogi Mirim e Mogi Guaçu, com taxa a partir de {brl(loja.frete.base)}. Veja
-              os detalhes na página de <Link href="/entrega">entrega</Link>.
+              Peça pelo site a qualquer hora e receba no sábado ou no domingo, das {HORARIO_FUNCIONAMENTO}:
+              para agora, com a loja aberta, ou agendado. Entregamos em Mogi Mirim e Mogi Guaçu, com taxa a
+              partir de {brl(loja.frete.base)}. Veja os detalhes na página de{" "}
+              <Link href="/entrega">entrega</Link>.
             </p>
             <figure className="poster">
               <Image

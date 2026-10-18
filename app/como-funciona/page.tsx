@@ -3,6 +3,7 @@ import Link from "next/link";
 import { JsonLd } from "@/components/Basicos";
 import { CabecalhoSite, Rodape } from "@/components/Moldura";
 import { loja, menorPreco } from "@/config/loja";
+import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { brl } from "@/lib/formato";
 import { jsonLdFaq } from "@/lib/seo";
 import { DIAS_CURTOS } from "@/lib/tempo";
@@ -10,32 +11,29 @@ import { DIAS_CURTOS } from "@/lib/tempo";
 export const metadata: Metadata = {
   title: "Como funciona o pedido",
   description:
-    "Agenda de quarta a sexta, entregas no sábado e domingo das 13h às 15h ou das 18h às 20h, pronta-entrega no fim de semana e pagamento por Pix, cartão ou dinheiro.",
+    "Abrimos sábado e domingo, das 13h às 18h, com delivery. Peça para agora ou agende a qualquer hora. Pagamento por Pix, cartão ou dinheiro na entrega.",
   alternates: { canonical: "/como-funciona" },
 };
-
-const janelasTexto = loja.janelas.map((j) => `das ${j.nome}`).join(" ou ");
 
 const perguntas = [
   {
     pergunta: "Quando posso fazer o pedido?",
-    resposta:
-      "A agenda de pedidos abre na quarta-feira às 9h e fecha na sexta-feira às 12h. Os pedidos feitos nesse período são entregues no sábado e no domingo seguintes.",
+    resposta: `A qualquer hora. Funcionamos aos sábados e domingos, das ${HORARIO_FUNCIONAMENTO}: com a loja aberta, você pede para agora; fora desse horário, faz o pedido do mesmo jeito e agenda o horário que preferir.`,
   },
   {
     pergunta: "Quais são os horários de entrega?",
-    resposta: `As entregas são no sábado e no domingo, ${janelasTexto}. Você escolhe o dia e a janela ao finalizar o pedido.`,
+    resposta: `As entregas são no sábado e no domingo, das ${HORARIO_FUNCIONAMENTO}. Ao finalizar, você escolhe "o quanto antes" (com a loja aberta) ou uma faixa de horário de 1 hora.`,
   },
   {
-    pergunta: "Tem pronta-entrega?",
+    pergunta: "Posso pedir para agora?",
     resposta:
-      "Sim. No sábado e no domingo, a partir das 8h, aceitamos pedidos de pronta-entrega enquanto houver estoque, para janelas que começam daqui a pelo menos uma hora.",
+      'Sim. Com a loja aberta, escolha "o quanto antes" e a gente entrega assim que possível. Para agendar, o horário precisa começar daqui a pelo menos uma hora.',
   },
   ...(loja.retirada.habilitada
     ? [
         {
           pergunta: "Posso retirar o pedido?",
-          resposta: `Sim. Ao finalizar, escolha “Retirada”: não há taxa de entrega e a retirada é nos mesmos dias e janelas das entregas. ${loja.retirada.aviso}`,
+          resposta: `Sim. Ao finalizar, escolha “Retirada”: não há taxa de entrega e a retirada é nos mesmos dias e horários das entregas. ${loja.retirada.aviso}`,
         },
       ]
     : []),
@@ -60,13 +58,13 @@ const perguntas = [
 ];
 
 const semana: [number, string, string][] = [
-  [1, "Sem agenda", ""],
-  [2, "Sem agenda", ""],
-  [3, "Abre 9h", "agenda"],
-  [4, "Aberta", "agenda"],
-  [5, "Fecha 12h", "agenda"],
-  [6, "Entregas", "entrega"],
-  [0, "Entregas", "entrega"],
+  [1, "Agende", ""],
+  [2, "Agende", ""],
+  [3, "Agende", ""],
+  [4, "Agende", ""],
+  [5, "Agende", ""],
+  [6, HORARIO_FUNCIONAMENTO, "entrega"],
+  [0, HORARIO_FUNCIONAMENTO, "entrega"],
 ];
 
 export default function ComoFunciona() {
@@ -84,8 +82,8 @@ export default function ComoFunciona() {
         </div>
 
         <section className="prose" aria-labelledby="t-agenda">
-          <h2 id="t-agenda">Agenda da semana</h2>
-          <ul className="week" aria-label="Agenda semanal">
+          <h2 id="t-agenda">Horário de funcionamento</h2>
+          <ul className="week" aria-label="Funcionamento na semana">
             {semana.map(([d, s, c]) => (
               <li key={d} className={`day ${c}`}>
                 <span className="d">{DIAS_CURTOS[d]}</span>
@@ -94,10 +92,9 @@ export default function ComoFunciona() {
             ))}
           </ul>
           <ul>
-            <li>A agenda de pedidos abre quarta às 9h e fecha sexta às 12h.</li>
-            <li>Entregas no sábado e no domingo, {janelasTexto}.</li>
-            <li>No fim de semana aceitamos pedidos de pronta-entrega enquanto houver estoque.</li>
-            <li>Com a agenda fechada, você pode ver o cardápio e deixar a sacola montada para depois.</li>
+            <li>Abrimos sábado e domingo, das {HORARIO_FUNCIONAMENTO}, com delivery.</li>
+            <li>Com a loja aberta, peça para agora e receba o quanto antes.</li>
+            <li>Nos outros dias e horários, faça o pedido do mesmo jeito e agende o horário que preferir.</li>
           </ul>
         </section>
 

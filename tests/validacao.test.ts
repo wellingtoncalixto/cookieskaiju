@@ -1,14 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { calcularAgenda } from "@/lib/agenda";
+import { CHAVE_AGORA, calcularAgenda } from "@/lib/agenda";
 import { errosEntrega, errosPagamento, etapaPendente } from "@/lib/validacao";
 
-const aberta = calcularAgenda(new Date("2026-10-14T10:00:00-03:00"));
+// Sábado 14h (aberto) e segunda 10h (fechado), em São Paulo.
+const aberta = calcularAgenda(new Date("2026-10-17T14:00:00-03:00"));
 const fechada = calcularAgenda(new Date("2026-10-12T10:00:00-03:00"));
-const ctx = (agenda = aberta, quantidade = 2) => ({ quantidade, agenda, textoAgenda: "Texto da agenda." });
+const ctx = (agenda = aberta, quantidade = 2) => ({ quantidade, agenda });
 
 const endereco = { rua: "Rua A", numero: "10", bairro: "Centro", cidade: "Mogi Mirim" };
 const completo = {
-  horario: "2026-10-17|noite",
+  horario: "2026-10-17|16h",
   endereco,
   nome: "Ana",
   pagamento: "pix" as string | null,
@@ -25,7 +26,7 @@ describe("validação das etapas", () => {
       endereco: { rua: "", numero: " ", bairro: "", cidade: "x" },
     });
     expect(e.mensagens).toEqual([
-      "Escolha o dia e a janela de entrega.",
+      "Escolha quando quer receber o pedido.",
       "Informe a rua.",
       "Informe o número.",
       "Informe o bairro.",
@@ -39,18 +40,18 @@ describe("validação das etapas", () => {
       errosEntrega(ctx(), { modalidade: "retirada", horario: completo.horario, endereco: vazio }).mensagens,
     ).toEqual([]);
     expect(errosEntrega(ctx(), { modalidade: "retirada", horario: null, endereco: vazio }).mensagens).toEqual(
-      ["Escolha o dia e a janela de retirada."],
+      ["Escolha quando quer retirar o pedido."],
     );
   });
 
-  it("horário que não existe mais na agenda é inválido", () => {
-    expect(errosEntrega(ctx(), { ...completo, horario: "2026-10-10|noite" }).campos).toContain("horario");
+  it("faixa que já passou é inválida", () => {
+    expect(errosEntrega(ctx(), { ...completo, horario: "2026-10-17|13h" }).campos).toContain("horario");
   });
 
-  it("agenda fechada bloqueia a entrega", () => {
-    expect(errosEntrega(ctx(fechada), completo).mensagens[0]).toBe(
-      "A agenda está fechada agora. Texto da agenda.",
-    );
+  it("loja fechada não bloqueia: aceita horário agendado, mas não 'o quanto antes'", () => {
+    expect(errosEntrega(ctx(fechada), completo).mensagens).toEqual([]);
+    expect(errosEntrega(ctx(fechada), { ...completo, horario: CHAVE_AGORA }).campos).toContain("horario");
+    expect(errosEntrega(ctx(aberta), { ...completo, horario: CHAVE_AGORA }).mensagens).toEqual([]);
   });
 
   it("nome e pagamento são obrigatórios (sem campo de WhatsApp)", () => {
@@ -78,8 +79,8 @@ describe("guarda de etapas", () => {
     expect(etapaPendente("revisao", ctx(), { ...completo, nome: "" })).toBe("pagamento");
   });
 
-  it("tudo certo libera a etapa", () => {
+  it("tudo certo libera a etapa, mesmo com a loja fechada", () => {
     expect(etapaPendente("revisao", ctx(), completo)).toBeNull();
-    expect(etapaPendente("entrega", ctx(fechada), completo)).toBeNull();
+    expect(etapaPendente("revisao", ctx(fechada), completo)).toBeNull();
   });
 });

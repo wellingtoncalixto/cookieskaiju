@@ -283,9 +283,6 @@
   .pill.aberta::before {
     animation: pulse 1.8s ease-in-out infinite;
   }
-  .pill.estoque {
-    color: var(--color-yellow);
-  }
   .pill.fechada,
   .pill.carregando {
     color: var(--bone-mute);
@@ -1070,6 +1067,27 @@
   [data-invalido="true"] .chip span {
     border-color: var(--color-err);
   }
+  /* Seletor de dias: linha com rolagem horizontal, como os chips de informação da home. */
+  .dias {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 2px;
+    margin: -2px;
+  }
+  .dias::-webkit-scrollbar {
+    display: none;
+  }
+  .dias .chip {
+    flex: none;
+  }
+  .dias .chip span {
+    flex-direction: column;
+    gap: 0;
+    padding: 8px 16px;
+    line-height: 1.2;
+  }
   .slot-day {
     display: grid;
     gap: 8px;
@@ -1094,8 +1112,9 @@
     padding: 0;
     margin: 0;
   }
-  /* "Como receber": título logo acima das opções pede um respiro maior. */
-  .block-head + .pay {
+  /* Título logo acima das opções ("Como receber", "Quando entregar") pede um respiro maior. */
+  .block-head + .pay,
+  .block-head + .slots {
     margin-top: 8px;
   }
   .pay .chip span {
@@ -1845,6 +1864,33 @@
   @media (min-width: 980px) {
     .com-barra .site-foot {
       padding-bottom: calc(28px + var(--sb));
+    }
+  }
+
+  /* ---------- WhatsApp flutuante ----------
+     Fica dentro deste mesmo @layer: um segundo bloco @layer separado é descartado pelo `next dev`. */
+  .wa-flutuante {
+    position: fixed;
+    right: var(--gr);
+    bottom: calc(18px + var(--sb));
+    z-index: 40; /* abaixo do modal da ficha (60) */
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #25d366;
+    color: #fff;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.45);
+    transition: transform 0.15s;
+  }
+  .wa-flutuante:hover {
+    transform: scale(1.06);
+  }
+  /* No celular, sobe para ficar acima da barra "Ver sacola" quando ela aparece. */
+  @media (max-width: 979px) {
+    body:has(.bottom.menu-only) .wa-flutuante {
+      bottom: calc(92px + var(--sb));
     }
   }
 }
