@@ -7,7 +7,7 @@ import { AvisoPrivacidade } from "@/components/Basicos";
 import { CabecalhoEtapa, Carregando, ListaErros, TotalAcao } from "@/components/checkout/Comum";
 import { loja } from "@/config/loja";
 import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
-import { CHAVE_AGORA, chaveHorario, horarioValido } from "@/lib/agenda";
+import { CHAVE_AGORA, chaveHorario, horarioValido, textoPrevisao } from "@/lib/agenda";
 import { mascaraCep, normalizar, soDigitos } from "@/lib/formato";
 import { textosTaxa, type EstadoFrete } from "@/lib/frete";
 import type { Endereco } from "@/lib/mensagem";
@@ -25,7 +25,7 @@ export function TelaEntrega() {
   const retirada = loja.retirada.habilitada && pedido.modalidade === "retirada";
   const invalido = (campo: string) => (tentou && erros.entrega.campos.includes(campo)) || undefined;
 
-  // Se o horário escolhido deixou de valer, limpa. Com a loja aberta, já deixa "o quanto antes" marcado.
+  // Se o horário escolhido deixou de valer, limpa. Se dá para pedir para hoje, já deixa essa opção marcada.
   useEffect(() => {
     if (!situacao) return;
     const ag = situacao.agenda;
@@ -128,7 +128,7 @@ export function TelaEntrega() {
                 </div>
               )}
               {ag.agora && (
-                <div className="chips" data-invalido={invalido("horario")}>
+                <div className="chips hoje" data-invalido={invalido("horario")}>
                   <label className="chip">
                     <input
                       type="radio"
@@ -138,12 +138,14 @@ export function TelaEntrega() {
                       onChange={() => definir({ horario: CHAVE_AGORA })}
                     />
                     <span>
-                      O quanto antes<em>hoje, até as 18h</em>
+                      {retirada ? "Hoje, pronto em" : "Hoje, em"} {loja.agenda.prazoMinimoMin} a{" "}
+                      {loja.agenda.prazoMaximoMin} min
+                      <em>previsão {textoPrevisao(ag)}</em>
                     </span>
                   </label>
                 </div>
               )}
-              {ag.agora && <p className="fmsg">Ou agende um horário:</p>}
+              {ag.agora && <p className="fmsg">Ou agende para outro dia:</p>}
               {/* Seletor de dias: as faixas aparecem só para o dia escolhido. */}
               <fieldset className="slot-day">
                 <legend className="sr-only">Dia</legend>
@@ -160,7 +162,7 @@ export function TelaEntrega() {
                           onChange={() => setDia(d.data)}
                         />
                         <span>
-                          {d.data === ag.hoje ? "Hoje" : DIAS_CURTOS[data.getUTCDay()]}
+                          {DIAS_CURTOS[data.getUTCDay()]}
                           <em>{ddmm(data)}</em>
                         </span>
                       </label>

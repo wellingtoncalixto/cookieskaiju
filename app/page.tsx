@@ -99,8 +99,8 @@ export default function Home() {
               </p>
               <p>
                 Funcionamos aos sábados e domingos, das {HORARIO_FUNCIONAMENTO}, com delivery em Mogi Mirim e
-                Mogi Guaçu. Dá para pedir a qualquer hora: com a loja aberta, para agora; fora do horário,
-                você agenda o pedido para o horário que preferir.
+                Mogi Guaçu. Dá para pedir a qualquer hora: para hoje, a entrega chega em 60 a 90 minutos; para
+                outro dia, você agenda o pedido para o horário que preferir.
               </p>
               <p>
                 Monte a sacola aqui no site e envie o pedido pelo WhatsApp. O pagamento é na entrega, por Pix,

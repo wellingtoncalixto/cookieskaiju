@@ -9,7 +9,7 @@ import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
 import { brl } from "@/lib/formato";
 import { textosTaxa } from "@/lib/frete";
 import { linhaPagamento, linkWhatsApp, montarMensagemWhatsApp } from "@/lib/mensagem";
-import { CHAVE_AGORA, textoHorario } from "@/lib/agenda";
+import { CHAVE_AGORA, horaDe, textoHorario } from "@/lib/agenda";
 import { DIAS_CURTOS, dataDeIso, ddmm } from "@/lib/tempo";
 import { linhasSacola, useSacola } from "@/store/sacola";
 
@@ -75,8 +75,11 @@ export function TelaRevisao() {
             <div className="when">
               {paraAgora ? (
                 <>
-                  Para agora
-                  <br />O quanto antes
+                  Hoje
+                  <br />
+                  {situacao.agenda.previsao
+                    ? `${horaDe(situacao.agenda.previsao.de)} a ${horaDe(situacao.agenda.previsao.ate)}`
+                    : ""}
                 </>
               ) : data && janela ? (
                 <>

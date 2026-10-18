@@ -18,7 +18,7 @@ export type PedidoMensagem = {
   /** Ausente = entrega. */
   modalidade?: "entrega" | "retirada";
   teste: boolean;
-  /** "Sábado, 24/10 · 14h às 15h" ou "O quanto antes (hoje, 18/10)" */
+  /** "Sábado, 24/10 · 14h às 15h" ou "Hoje, 18/10 · entre 15h10 e 15h40 (60 a 90 min após o pedido)" */
   horario: string;
   endereco: Endereco;
   taxa: Taxa;

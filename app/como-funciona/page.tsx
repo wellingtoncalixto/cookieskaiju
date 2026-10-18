@@ -11,23 +11,22 @@ import { DIAS_CURTOS } from "@/lib/tempo";
 export const metadata: Metadata = {
   title: "Como funciona o pedido",
   description:
-    "Abrimos sábado e domingo, das 13h às 18h, com delivery. Peça para agora ou agende a qualquer hora. Pagamento por Pix, cartão ou dinheiro na entrega.",
+    "Abrimos sábado e domingo, das 13h às 18h. Pedido para hoje chega em 60 a 90 minutos, ou agende outro dia. Pagamento por Pix, cartão ou dinheiro.",
   alternates: { canonical: "/como-funciona" },
 };
 
 const perguntas = [
   {
     pergunta: "Quando posso fazer o pedido?",
-    resposta: `A qualquer hora. Funcionamos aos sábados e domingos, das ${HORARIO_FUNCIONAMENTO}: com a loja aberta, você pede para agora; fora desse horário, faz o pedido do mesmo jeito e agenda o horário que preferir.`,
+    resposta: `A qualquer hora. Funcionamos aos sábados e domingos, das ${HORARIO_FUNCIONAMENTO}: pedindo para hoje, você recebe em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos; para outro dia, agenda o horário que preferir.`,
   },
   {
     pergunta: "Quais são os horários de entrega?",
-    resposta: `As entregas são no sábado e no domingo, das ${HORARIO_FUNCIONAMENTO}. Ao finalizar, você escolhe "o quanto antes" (com a loja aberta) ou uma faixa de horário de 1 hora.`,
+    resposta: `As entregas são no sábado e no domingo, das ${HORARIO_FUNCIONAMENTO}. Pedido para hoje não precisa escolher horário: chega em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos. Para outro dia, você escolhe uma faixa de 1 hora.`,
   },
   {
-    pergunta: "Posso pedir para agora?",
-    resposta:
-      'Sim. Com a loja aberta, escolha "o quanto antes" e a gente entrega assim que possível. Para agendar, o horário precisa começar daqui a pelo menos uma hora.',
+    pergunta: "Posso pedir para hoje?",
+    resposta: `Sim, até as 17h. A entrega chega em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos depois do pedido (se pedir antes de abrirmos, conta a partir das 13h).`,
   },
   ...(loja.retirada.habilitada
     ? [
@@ -93,7 +92,10 @@ export default function ComoFunciona() {
           </ul>
           <ul>
             <li>Abrimos sábado e domingo, das {HORARIO_FUNCIONAMENTO}, com delivery.</li>
-            <li>Com a loja aberta, peça para agora e receba o quanto antes.</li>
+            <li>
+              Pedido para hoje chega em {loja.agenda.prazoMinimoMin} a {loja.agenda.prazoMaximoMin} minutos
+              (até as 17h).
+            </li>
             <li>Nos outros dias e horários, faça o pedido do mesmo jeito e agende o horário que preferir.</li>
           </ul>
         </section>

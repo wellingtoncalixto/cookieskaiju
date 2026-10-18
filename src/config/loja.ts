@@ -113,11 +113,15 @@ export const loja = {
     diasAbertos: [6, 0],
     abreMin: 13 * 60,
     fechaMin: 18 * 60,
-    /** Com a loja aberta, "O quanto antes" é aceito até este horário. */
-    agoraAteMin: 17 * 60 + 30,
-    /** Uma faixa agendada precisa começar daqui a pelo menos X minutos. */
-    antecedenciaMin: 60,
-    /** Quantos dias de funcionamento aparecem para agendar (4 = os dois próximos fins de semana). */
+    /**
+     * Pedido para hoje: o cliente não escolhe horário; recebe (ou retira) entre `prazoMinimoMin` e
+     * `prazoMaximoMin` depois do pedido (ou da abertura, se pedir antes de abrir).
+     */
+    prazoMinimoMin: 60,
+    prazoMaximoMin: 90,
+    /** Último horário para pedir para hoje (17h + 60 min de prazo mínimo = fechamento às 18h). */
+    pedidoHojeAteMin: 17 * 60,
+    /** Quantos dias de funcionamento (depois de hoje) aparecem para agendar. 4 = os dois próximos fins de semana. */
     diasParaAgendar: 4,
   },
 

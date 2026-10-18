@@ -70,8 +70,8 @@ export default async function PaginaCookie({ params }: Props) {
             </p>
             <p>
               Peça pelo site a qualquer hora e receba no sábado ou no domingo, das {HORARIO_FUNCIONAMENTO}:
-              para agora, com a loja aberta, ou agendado. Entregamos em Mogi Mirim e Mogi Guaçu, com taxa a
-              partir de {brl(loja.frete.base)}. Veja os detalhes na página de{" "}
+              para hoje, em 60 a 90 minutos, ou agendado para outro dia. Entregamos em Mogi Mirim e Mogi
+              Guaçu, com taxa a partir de {brl(loja.frete.base)}. Veja os detalhes na página de{" "}
               <Link href="/entrega">entrega</Link>.
             </p>
             <figure className="poster">

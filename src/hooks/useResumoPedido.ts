@@ -22,7 +22,7 @@ export function useResumoPedido(agenda: Agenda | null) {
       const taxa: Taxa = { tipo: "retirada", valor: 0 };
       return { quantidade, subtotal, promo: null, taxa, dica: "", total: subtotal };
     }
-    // A promoção compara com a data de ENTREGA: a escolhida (hoje, se for "o quanto antes") ou a próxima.
+    // A promoção compara com a data de ENTREGA: a escolhida (hoje, se for o pedido para hoje) ou a próxima.
     const dataEntrega = dataDoHorario(agenda, horario) ?? agenda?.dias[0]?.data ?? isoData(agoraSaoPaulo());
     const promo = cidade ? avaliarPromo({ cidade, quantidade, dataEntrega }) : null;
     const taxa = resolverTaxa(frete, promo);

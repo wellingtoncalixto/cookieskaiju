@@ -9,7 +9,7 @@ const ctx = (agenda = aberta, quantidade = 2) => ({ quantidade, agenda });
 
 const endereco = { rua: "Rua A", numero: "10", bairro: "Centro", cidade: "Mogi Mirim" };
 const completo = {
-  horario: "2026-10-17|16h",
+  horario: "2026-10-18|16h",
   endereco,
   nome: "Ana",
   pagamento: "pix" as string | null,
@@ -44,11 +44,11 @@ describe("validação das etapas", () => {
     );
   });
 
-  it("faixa que já passou é inválida", () => {
-    expect(errosEntrega(ctx(), { ...completo, horario: "2026-10-17|13h" }).campos).toContain("horario");
+  it("faixa de hoje não vale: para hoje o cliente não escolhe horário", () => {
+    expect(errosEntrega(ctx(), { ...completo, horario: "2026-10-17|16h" }).campos).toContain("horario");
   });
 
-  it("loja fechada não bloqueia: aceita horário agendado, mas não 'o quanto antes'", () => {
+  it("loja fechada não bloqueia: aceita horário agendado, mas não o pedido para hoje", () => {
     expect(errosEntrega(ctx(fechada), completo).mensagens).toEqual([]);
     expect(errosEntrega(ctx(fechada), { ...completo, horario: CHAVE_AGORA }).campos).toContain("horario");
     expect(errosEntrega(ctx(aberta), { ...completo, horario: CHAVE_AGORA }).mensagens).toEqual([]);

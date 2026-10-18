@@ -1082,6 +1082,21 @@
   .dias .chip {
     flex: none;
   }
+  /* O dia só escolhe quais faixas mostrar: aba clara, para não parecer o horário escolhido (laranja). */
+  .dias .chip input:checked + span {
+    border-color: var(--color-bone);
+    background: var(--color-void-3);
+  }
+  /* Opção "Hoje, em 60 a 90 min": largura toda, texto à esquerda e previsão à direita. */
+  .chips.hoje .chip {
+    flex: 1;
+  }
+  .chips.hoje .chip span {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    padding: 14px 16px;
+  }
   .dias .chip span {
     flex-direction: column;
     gap: 0;

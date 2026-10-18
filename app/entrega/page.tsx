@@ -10,7 +10,7 @@ import { agoraSaoPaulo, isoData } from "@/lib/tempo";
 export const metadata: Metadata = {
   title: "Entrega de cookies em Mogi Mirim e Mogi Guaçu",
   description:
-    "Entregamos cookies aos sábados e domingos, das 13h às 18h, em Mogi Mirim e Mogi Guaçu. Peça para agora ou agende. Taxa a partir de R$ 3,00 e frete grátis na promoção.",
+    "Entregamos cookies aos sábados e domingos, das 13h às 18h, em Mogi Mirim e Mogi Guaçu, em 60 a 90 minutos ou agendado. Taxa a partir de R$ 3,00.",
   alternates: { canonical: "/entrega" },
 };
 
@@ -33,7 +33,10 @@ export default function Entrega() {
           <h2 id="t-janelas">Dias e horários</h2>
           <ul>
             <li>Sábado e domingo, das {HORARIO_FUNCIONAMENTO}, com delivery.</li>
-            <li>Com a loja aberta, você pede para agora e recebe o quanto antes.</li>
+            <li>
+              Pedido para hoje (até as 17h) chega em {loja.agenda.prazoMinimoMin} a{" "}
+              {loja.agenda.prazoMaximoMin} minutos, sem precisar escolher horário.
+            </li>
             <li>Fora do horário, você faz o pedido do mesmo jeito e agenda o horário que preferir.</li>
           </ul>
         </section>
