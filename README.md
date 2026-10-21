@@ -88,6 +88,12 @@ Abra o site, faça uma simulação de pedido e, no navegador, veja a resposta de
 - `configuração: LOJA_LAT e LOJA_LON não definidas` → cadastre as variáveis na Vercel e publique de novo.
 - `HTTP 403` ou `HTTP 429` de algum serviço → o serviço gratuito está recusando o servidor. A solução definitiva é preencher `GOOGLE_MAPS_API_KEY`.
 
+## Registro de pedidos no Painel Comercial (Google Sheets)
+
+Opcional e **desligado por padrão** (`NEXT_PUBLIC_REGISTRO_PEDIDOS=false`). Quando ligado, cada pedido enviado gera
+um código `CK-AAMMDD-XXXXXXX` (na comanda e na mensagem) e um registro **sem dados pessoais** nas abas Pedidos e
+Itens, como **Pendente**. Instalação, segredos, testes e ativação: [docs/INTEGRACAO-PLANILHA.md](docs/INTEGRACAO-PLANILHA.md).
+
 ## Privacidade (LGPD)
 
 - Só a sacola (sabores e quantidades) fica salva no navegador, em `localStorage`.

@@ -63,6 +63,7 @@ export function TelaEnviado() {
         <p>
           O WhatsApp abriu em outra aba com a mensagem do pedido pronta. Toque em enviar por lá para concluir.
         </p>
+        <SituacaoRegistro id={c.pedido.idPedido} registro={c.pedido.registro} />
         <p className="fine">
           Se o WhatsApp não abriu, copie a mensagem e envie para{" "}
           <span className="copy-num">{loja.contato.whatsappExibicao}</span>.
@@ -89,5 +90,22 @@ export function TelaEnviado() {
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * Situação do registro no Painel Comercial. Só diz "registrado" depois da confirmação do servidor;
+ * em caso de falha, não fala de registro (o pedido segue pelo WhatsApp, com o código na mensagem).
+ */
+function SituacaoRegistro({ id, registro }: { id: string | null; registro: string }) {
+  if (!id || registro === "inativo") return null;
+  return (
+    <p className={`fine registro ${registro}`} role="status">
+      {registro === "registrado"
+        ? `Pedido ${id} recebido pelo site. A confirmação vem pelo WhatsApp.`
+        : registro === "enviando"
+          ? `Pedido ${id}`
+          : `Código do pedido: ${id} (já está na mensagem).`}
+    </p>
   );
 }

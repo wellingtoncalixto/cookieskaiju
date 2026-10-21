@@ -2,15 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import { CabecalhoEtapa, Carregando, ListaErros } from "@/components/checkout/Comum";
 import { IconeWhatsApp } from "@/components/Icones";
 import { loja } from "@/config/loja";
+import { REGISTRO_PEDIDOS_ATIVO } from "@/config/planilha";
 import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
 import { brl } from "@/lib/formato";
 import { textosTaxa } from "@/lib/frete";
 import { linhaPagamento, linkWhatsApp, montarMensagemWhatsApp } from "@/lib/mensagem";
 import { CHAVE_AGORA, horaDe, textoHorario } from "@/lib/agenda";
+import { freteEmAndamento } from "@/lib/agendar-frete";
+import { gerarIdPedido } from "@/lib/id-pedido";
+import { assinaturaConteudo, registrarComTentativas, type EntradaCliente } from "@/lib/registro-cliente";
 import { DIAS_CURTOS, dataDeIso, ddmm } from "@/lib/tempo";
+import { usePedido } from "@/store/pedido";
 import { linhasSacola, useSacola } from "@/store/sacola";
 
 export function TelaRevisao() {
@@ -18,6 +24,28 @@ export function TelaRevisao() {
   const c = useCheckout();
   const liberada = useGuardaEtapa("revisao", c);
   const itens = useSacola((s) => s.itens);
+
+  // Resumo para o Painel Comercial: sem nome, telefone, endereço nem mensagem.
+  const p = c.pedido;
+  const retiradaEscolhida = p.modalidade === "retirada";
+  const resumoRegistro: Omit<EntradaCliente, "id" | "cotacao"> = {
+    modalidade: p.modalidade,
+    horario: p.horario ?? "",
+    itens: linhasSacola(itens).map((l) => ({ slug: l.produto.slug, quantidade: l.quantidade })),
+    pagamento: p.pagamento ?? "pix",
+    cidade: retiradaEscolhida ? "" : p.endereco.cidade,
+    cep: retiradaEscolhida ? "" : p.endereco.cep,
+  };
+  const conteudo = assinaturaConteudo(resumoRegistro);
+
+  // ID estável enquanto o pedido não mudar (mesmo ID = nunca duplica na planilha).
+  useEffect(() => {
+    if (!REGISTRO_PEDIDOS_ATIVO || !liberada) return;
+    const atual = usePedido.getState();
+    if (atual.idPedido && atual.idConteudo === conteudo) return;
+    atual.definir({ idPedido: gerarIdPedido(), idConteudo: conteudo, registro: "inativo" });
+  }, [liberada, conteudo]);
+
   const cabecalho = (
     <CabecalhoEtapa
       titulo="Revisar pedido"
@@ -49,7 +77,9 @@ export function TelaRevisao() {
   const retirada = pedido.modalidade === "retirada";
   const erros = [...c.erros.entrega.mensagens, ...c.erros.pagamento.mensagens];
 
+  const idPedido = REGISTRO_PEDIDOS_ATIVO ? (pedido.idPedido ?? undefined) : undefined;
   const mensagem = montarMensagemWhatsApp({
+    id: idPedido,
     itens: linhas.map((l) => ({ nome: l.produto.nome, quantidade: l.quantidade, preco: l.produto.preco })),
     modalidade: pedido.modalidade,
     teste: situacao.agenda.teste,
@@ -71,6 +101,7 @@ export function TelaRevisao() {
             <div>
               <span className="label">Comanda</span>
               <b>Cookies Kaiju</b>
+              {idPedido && <span className="label id-pedido">Pedido {idPedido}</span>}
             </div>
             <div className="when">
               {paraAgora ? (
@@ -190,6 +221,19 @@ export function TelaRevisao() {
                 return;
               }
               pedido.definir({ mensagemEnviada: mensagem });
+              // Registro em segundo plano: o WhatsApp abre na hora, sem esperar a planilha.
+              const situacaoRegistro = usePedido.getState().registro; // estado atual (não o do último render)
+              if (idPedido && (situacaoRegistro === "inativo" || situacaoRegistro === "falhou")) {
+                usePedido.getState().definir({ registro: "enviando" });
+                const entrada = { ...resumoRegistro, id: idPedido };
+                void (async () => {
+                  // Se o frete ainda está sendo calculado, espera um pouco pela cotação (sem segurar o WhatsApp).
+                  const cotacao = await cotacaoQuandoPronta();
+                  await registrarComTentativas({ ...entrada, cotacao }, (estado) =>
+                    usePedido.getState().definir({ registro: estado }),
+                  );
+                })();
+              }
               setTimeout(() => router.push("/pedido/enviado"), 60);
             }}
           >
@@ -200,4 +244,13 @@ export function TelaRevisao() {
       </div>
     </>
   );
+}
+
+/** Cotação de frete assinada; se o cálculo estiver agendado ou em andamento, espera até 10 segundos. */
+async function cotacaoQuandoPronta(): Promise<string | undefined> {
+  for (let i = 0; i < 20 && freteEmAndamento(); i++) {
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  const frete = usePedido.getState().frete;
+  return frete.status === "ok" ? frete.cotacao : undefined;
 }

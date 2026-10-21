@@ -1,4 +1,5 @@
 import { IconeCadeado } from "@/components/Icones";
+import { REGISTRO_PEDIDOS_ATIVO } from "@/config/planilha";
 import { serializarJsonLd } from "@/lib/seo";
 
 /** Dados estruturados renderizados no servidor. */
@@ -29,6 +30,8 @@ export function AvisoPrivacidade({ variante }: { variante: "endereco" | "dados" 
         <p>
           Nome e endereço servem só para montar a mensagem do pedido que você envia para a Cookies Kaiju pelo
           WhatsApp. O site não guarda nenhum desses dados.
+          {REGISTRO_PEDIDOS_ATIVO &&
+            " Para controle da loja, fica registrado só um resumo do pedido (sabores, valores, cidade e forma de pagamento), sem dados pessoais."}
         </p>
       </div>
     </div>

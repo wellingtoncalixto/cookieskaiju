@@ -14,6 +14,8 @@ export type Endereco = {
 };
 
 export type PedidoMensagem = {
+  /** ID do pedido (CK-AAMMDD-XXXXXXX), quando o registro no Painel está ligado. */
+  id?: string;
   itens: { nome: string; quantidade: number; preco: number }[];
   /** Ausente = entrega. */
   modalidade?: "entrega" | "retirada";
@@ -60,7 +62,7 @@ function linhaTaxa(taxa: Taxa): string {
   }
 }
 
-/** "Pix" · "Cartão por aproximação (na entrega)" · "Dinheiro · troco para R$ 100" */
+/** "Pix" · "Cartão de crédito por aproximação (na entrega)" · "Dinheiro · troco para R$ 100" */
 export function linhaPagamento(
   id: FormaPagamento["id"] | null,
   troco: string,
@@ -80,6 +82,7 @@ export function montarMensagemWhatsApp(p: PedidoMensagem): string {
   const total = subtotal + (p.taxa.valor ?? 0);
 
   const L: string[] = ["*NOVO PEDIDO · COOKIES KAIJU*"];
+  if (p.id) L.push(`Pedido: ${p.id}`);
   if (p.teste) L.push("_PEDIDO DE TESTE_");
 
   L.push("", "*Cookies*");

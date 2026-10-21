@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CabecalhoSite, Rodape } from "@/components/Moldura";
 import { loja } from "@/config/loja";
+import { REGISTRO_PEDIDOS_ATIVO } from "@/config/planilha";
 
 export const metadata: Metadata = {
   title: "Política de privacidade",
@@ -38,7 +39,21 @@ export default function Privacidade() {
           <p>
             Fica salva no seu navegador só a sacola (quais cookies e quantos), para você não perder a escolha.
             Você pode apagar a qualquer momento limpando os dados do site no navegador.
+            {REGISTRO_PEDIDOS_ATIVO &&
+              " Se a conexão falhar no envio do pedido, um resumo dele (sem nome, telefone nem endereço) também fica guardado por até 24 horas, só para ser reenviado, e é apagado assim que chega."}
           </p>
+
+          {REGISTRO_PEDIDOS_ATIVO && (
+            <>
+              <h2>Resumo dos pedidos</h2>
+              <p>
+                Para o controle de vendas da loja, cada pedido enviado pelo site gera um registro com: código
+                do pedido, data e hora, sabores e quantidades, entrega ou retirada, cidade, distância e taxa
+                de entrega, e forma de pagamento. Esse registro não tem nome, telefone, endereço nem o texto
+                da mensagem do WhatsApp, e não identifica quem fez o pedido.
+              </p>
+            </>
+          )}
 
           <h2>Serviços que o site consulta</h2>
           <ul>

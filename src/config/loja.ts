@@ -29,7 +29,7 @@ export type Janela = {
 };
 
 export type FormaPagamento = {
-  id: "pix" | "cartao" | "dinheiro";
+  id: "pix" | "credito" | "debito" | "dinheiro";
   nome: string;
   descricao: string;
   /** Como a forma aparece na mensagem do WhatsApp. */
@@ -157,10 +157,16 @@ export const loja = {
   pagamentos: [
     { id: "pix", nome: "Pix", descricao: "Chave enviada na confirmação", naMensagem: "Pix" },
     {
-      id: "cartao",
-      nome: "Cartão",
-      descricao: "Crédito ou débito, só por aproximação",
-      naMensagem: "Cartão por aproximação (na entrega)",
+      id: "credito",
+      nome: "Cartão de crédito",
+      descricao: "Só por aproximação",
+      naMensagem: "Cartão de crédito por aproximação (na entrega)",
+    },
+    {
+      id: "debito",
+      nome: "Cartão de débito",
+      descricao: "Só por aproximação",
+      naMensagem: "Cartão de débito por aproximação (na entrega)",
     },
     { id: "dinheiro", nome: "Dinheiro", descricao: "Na entrega", naMensagem: "Dinheiro" },
   ] satisfies FormaPagamento[] as FormaPagamento[],

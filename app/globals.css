@@ -1270,6 +1270,14 @@
     line-height: 0.9;
     display: block;
   }
+  .comanda .hd .id-pedido {
+    display: block;
+    margin-top: 6px;
+    letter-spacing: 0.06em;
+  }
+  .fine.registro.registrado {
+    color: var(--color-ok);
+  }
   .comanda .hd .label {
     color: var(--cocoa-soft);
   }
