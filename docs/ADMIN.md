@@ -11,6 +11,9 @@ O `/admin` substitui o Painel Comercial e a planilha de precificação:
   dele; cancelado ou abandonado devolve. Em zero, o site mostra "Esgotado", a sacola não passa do disponível e a
   revisão do pedido confere o estoque antes de liberar o envio. Vazio = não controlar.
   Se dois clientes levarem a última unidade no mesmo segundo, o segundo pedido chega marcado **Sem estoque**.
+- **Compras**: envie a foto ou o PDF de uma nota/cupom fiscal de compra. A IA (Claude) lê os itens, converte
+  cada um para embalagem (g, ml ou un) e sugere o insumo correspondente; você confere e aplica. Os preços dos insumos
+  são atualizados, os custos dos sabores recalculados e o total vira uma despesa no financeiro.
 - **Financeiro**: por período (semana, mês, mês passado, 30 dias, ano, tudo ou datas escolhidas): faturamento,
   custos (cookies, embalagem, taxas, combustível), contribuição, despesas e resultado; vendas por sabor, por
   entrega × retirada, por pagamento e por origem; lançamento de despesas por categoria.
@@ -40,6 +43,7 @@ Em **Settings → Environment Variables** (Production e Preview), além das que 
 | `ADMIN_SEGREDO_SESSAO`         | texto aleatório (32+ caracteres), diferente dos outros |
 | `GPT_API_CHAVE`                | texto aleatório (32+ caracteres), para o ChatGPT       |
 | `GPT_LEITURA_SENHA`            | senha do usuário `gpt_leitura` (ver o passo 5)         |
+| `ANTHROPIC_API_KEY`            | chave da API da Anthropic, para ler as notas de compra |
 
 Para gerar um texto aleatório: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
 

@@ -22,6 +22,16 @@ import {
 import { definirEstoque } from "@/server/estoque";
 import { CATEGORIAS_DESPESA, adicionarDespesa, excluirDespesa } from "@/server/financeiro";
 import { STATUS, mudarStatus } from "@/server/pedidos";
+import { obterBanco } from "@/server/db";
+import {
+  TIPOS_ACEITOS,
+  leitorClaude,
+  mensagemDeErro,
+  sanearNota,
+  type InsumoParaLeitura,
+  type NotaLida,
+} from "@/server/leitura-nota";
+import { aplicarNota, descartarNota, salvarRascunho, type ConferenciaItem } from "@/server/notas";
 import {
   adminConfigurado,
   criarSessao,
@@ -334,4 +344,102 @@ export async function excluirDespesaAcao(form: FormData) {
   const i = id(form);
   if (i) await excluirDespesa(i);
   voltar(volta, { ok: "Despesa excluída." });
+}
+
+// ---------------------------------------------------------------- compras (notas fiscais)
+
+const TAMANHO_MAX_NOTA = 4_000_000;
+
+export async function lerNotaAcao(form: FormData) {
+  await exigirAdmin();
+  const C = "/admin/compras";
+  const arquivo = form.get("arquivo");
+  if (!(arquivo instanceof File) || arquivo.size === 0)
+    voltar(C, { erro: "Escolha a foto ou o PDF da nota." });
+  if (!(TIPOS_ACEITOS as readonly string[]).includes(arquivo.type))
+    voltar(C, { erro: "Formato não aceito: envie JPG, PNG, WebP ou PDF." });
+  if (arquivo.size > TAMANHO_MAX_NOTA) voltar(C, { erro: "Arquivo grande demais (máximo 4 MB)." });
+  if (!process.env.ANTHROPIC_API_KEY)
+    voltar(C, { erro: "Leitura de notas não configurada (ANTHROPIC_API_KEY)." });
+
+  const insumos = await obterBanco().consulta<InsumoParaLeitura>(
+    "select id, nome, unidade from insumos order by nome",
+  );
+  let nota: NotaLida;
+  try {
+    const base64 = Buffer.from(await arquivo.arrayBuffer()).toString("base64");
+    nota = sanearNota(await leitorClaude({ tipo: arquivo.type, base64 }, insumos), insumos);
+  } catch (e) {
+    console.error("compras: falha ao ler a nota —", e instanceof Error ? e.message : e);
+    voltar(C, { erro: mensagemDeErro(e) });
+  }
+  if (!nota.legivel || nota.itens.length === 0)
+    voltar(C, { erro: nota.observacao || "Não encontrei itens nessa imagem. Tente uma foto mais nítida." });
+  const id = await salvarRascunho(nota, arquivo.name);
+  voltar(`${C}/${id}`, { ok: "Nota lida. Confira os itens antes de aplicar." });
+}
+
+export async function aplicarNotaAcao(form: FormData) {
+  await exigirAdmin();
+  const nid = id(form);
+  if (!nid) voltar("/admin/compras", { erro: "Nota inválida." });
+  const caminho = `/admin/compras/${nid}`;
+  const data = texto(form, "data");
+  const total = numero(form, "total");
+  const categoria = texto(form, "categoria");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) voltar(caminho, { erro: "Informe a data da compra." });
+  if (total == null || !(total >= 0)) voltar(caminho, { erro: "Total inválido." });
+  if (!(CATEGORIAS_DESPESA as readonly string[]).includes(categoria))
+    voltar(caminho, { erro: "Escolha a categoria." });
+
+  const itens: ConferenciaItem[] = [];
+  for (const iid of form
+    .getAll("item")
+    .map(Number)
+    .filter((n) => Number.isInteger(n) && n > 0)) {
+    const campo = (k: string) => `item-${iid}-${k}`;
+    const unidade = texto(form, campo("unidade"));
+    const insumo = texto(form, campo("insumo"));
+    const tamanho = numero(form, campo("tamanho"));
+    const quantidade = numero(form, campo("quantidade"));
+    const valor = numero(form, campo("valor"));
+    if ([tamanho, quantidade, valor].some((v) => Number.isNaN(v)))
+      voltar(caminho, { erro: `Número inválido no item "${texto(form, campo("descricao"))}".` });
+    itens.push({
+      id: iid,
+      descricao: texto(form, campo("descricao")).slice(0, 160) || "Item",
+      quantidade: quantidade && quantidade > 0 ? quantidade : 1,
+      tamanhoEmbalagem: tamanho && tamanho > 0 ? tamanho : null,
+      unidade: ["g", "ml", "un"].includes(unidade) ? (unidade as "g") : null,
+      valorTotal: valor ?? 0,
+      insumo: insumo === "novo" ? "novo" : Number(insumo) > 0 ? Number(insumo) : null,
+      atualizarPreco: form.get(campo("atualizar")) === "on",
+    });
+  }
+  let r: Awaited<ReturnType<typeof aplicarNota>>;
+  try {
+    r = await aplicarNota(nid, {
+      fornecedor: texto(form, "fornecedor").slice(0, 120),
+      data,
+      total,
+      categoria,
+      itens,
+    });
+  } catch (e) {
+    voltar(caminho, { erro: e instanceof Error ? e.message : "Não foi possível aplicar." });
+  }
+  const partes = [
+    r.atualizados.length ? `Preço atualizado: ${r.atualizados.join(", ")}.` : "",
+    r.criados.length ? `Insumo novo: ${r.criados.join(", ")}.` : "",
+    "Despesa lançada no financeiro.",
+    r.avisos.length ? `Atenção: ${r.avisos.join(" ")}` : "",
+  ];
+  voltar(caminho, { ok: partes.filter(Boolean).join(" ") });
+}
+
+export async function descartarNotaAcao(form: FormData) {
+  await exigirAdmin();
+  const nid = id(form);
+  if (nid) await descartarNota(nid);
+  voltar("/admin/compras", { ok: "Nota descartada." });
 }

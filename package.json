@@ -14,6 +14,7 @@
     "db:migrar": "node scripts/migrar.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
     "@neondatabase/serverless": "^1.2.0",
     "@vercel/blob": "^2.8.2",
     "next": "16.4.0",

@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/admin", rotulo: "Operação" },
   { href: "/admin/produtos", rotulo: "Produtos" },
   { href: "/admin/precificacao", rotulo: "Precificação" },
+  { href: "/admin/compras", rotulo: "Compras" },
   { href: "/admin/financeiro", rotulo: "Financeiro" },
 ];
 
