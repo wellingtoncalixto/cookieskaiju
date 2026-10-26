@@ -5,21 +5,24 @@ import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/Basicos";
 import { FichaProduto } from "@/components/FichaProduto";
 import { CabecalhoSite, Rodape } from "@/components/Moldura";
-import { imagemProduto, loja, posterProduto, produtoPorSlug } from "@/config/loja";
+import { loja } from "@/config/loja";
+import { imagemProduto, posterProduto, produtoPorSlug } from "@/lib/catalogo";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { brl } from "@/lib/formato";
 import { jsonLdProduto } from "@/lib/seo";
+import { obterCatalogo } from "@/server/catalogo";
 
 type Props = { params: Promise<{ slug: string }> };
 
-export const dynamicParams = false;
+// Sabores novos cadastrados no admin são gerados na primeira visita (e revalidados pela tag do catálogo).
+export const dynamicParams = true;
 
-export function generateStaticParams() {
-  return loja.produtos.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  return (await obterCatalogo()).map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const p = produtoPorSlug((await params).slug);
+  const p = produtoPorSlug((await params).slug, await obterCatalogo());
   if (!p) return {};
   const desc = `${p.descricao.replace(/\.$/, "")}. Cookie de ${loja.pesoGramas} g por ${brl(p.preco)} com entrega em Mogi Mirim e Mogi Guaçu.`;
   // A imagem de compartilhamento vem de ./opengraph-image.tsx (foto do sabor + nome + preço).
@@ -37,9 +40,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PaginaCookie({ params }: Props) {
-  const p = produtoPorSlug((await params).slug);
+  const produtos = await obterCatalogo();
+  const p = produtoPorSlug((await params).slug, produtos);
   if (!p) notFound();
-  const outros = loja.produtos.filter((o) => o.slug !== p.slug);
+  const outros = produtos.filter((o) => o.slug !== p.slug);
 
   return (
     <>
@@ -76,7 +80,7 @@ export default async function PaginaCookie({ params }: Props) {
             </p>
             <figure className="poster">
               <Image
-                src={posterProduto(p.slug)}
+                src={posterProduto(p)}
                 alt={`Cartaz do cookie ${p.nome} da Cookies Kaiju`}
                 width={1024}
                 height={1536}
@@ -93,7 +97,7 @@ export default async function PaginaCookie({ params }: Props) {
               <li key={o.slug}>
                 <Link href={`/cookies/${o.slug}`}>
                   <Image
-                    src={imagemProduto(o.slug)}
+                    src={imagemProduto(o)}
                     alt={o.alt}
                     width={240}
                     height={240}

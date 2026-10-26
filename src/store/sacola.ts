@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import { loja, produtoPorSlug } from "@/config/loja";
+import { loja } from "@/config/loja";
+import { catalogoAtual, produtoPorSlug } from "@/lib/catalogo";
 import { sacolaExpirada } from "@/lib/tempo";
 
 /**
@@ -79,10 +80,12 @@ export const useSacola = create<EstadoSacola>()(
 
 /** Linhas da sacola na ordem do cardápio. */
 export const linhasSacola = (itens: Record<string, number>) =>
-  loja.produtos.filter((p) => itens[p.slug]).map((p) => ({ produto: p, quantidade: itens[p.slug] }));
+  catalogoAtual()
+    .filter((p) => itens[p.slug])
+    .map((p) => ({ produto: p, quantidade: itens[p.slug] }));
 
 export const quantidadeTotal = (itens: Record<string, number>) =>
   Object.values(itens).reduce((a, b) => a + b, 0);
 
 export const subtotalSacola = (itens: Record<string, number>) =>
-  loja.produtos.reduce((s, p) => s + (itens[p.slug] ?? 0) * p.preco, 0);
+  catalogoAtual().reduce((s, p) => s + (itens[p.slug] ?? 0) * p.preco, 0);

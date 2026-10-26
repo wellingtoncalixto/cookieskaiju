@@ -18,6 +18,10 @@ export type Produto = {
   disponivel: boolean;
   /** Texto alternativo descritivo da foto. */
   alt: string;
+  /** Foto enviada pelo admin (URL). Sem ela, usa /cookies/{slug}.jpg. */
+  foto?: string | null;
+  /** Cartaz enviado pelo admin (URL). Sem ele, usa /cookies/posters/{slug}-cartaz.jpg. */
+  cartaz?: string | null;
 };
 
 export type Janela = {
@@ -29,7 +33,7 @@ export type Janela = {
 };
 
 export type FormaPagamento = {
-  id: "pix" | "cartao" | "dinheiro";
+  id: "pix" | "credito" | "debito" | "dinheiro";
   nome: string;
   descricao: string;
   /** Como a forma aparece na mensagem do WhatsApp. */
@@ -58,6 +62,7 @@ export const loja = {
   /** Peso de todos os cookies, em gramas. */
   pesoGramas: 120,
 
+  /** Cardápio de reserva: vale enquanto o banco não estiver configurado (o admin é a fonte quando está). */
   produtos: [
     {
       slug: "explosao-de-nutella",
@@ -157,10 +162,16 @@ export const loja = {
   pagamentos: [
     { id: "pix", nome: "Pix", descricao: "Chave enviada na confirmação", naMensagem: "Pix" },
     {
-      id: "cartao",
-      nome: "Cartão",
-      descricao: "Crédito ou débito, só por aproximação",
-      naMensagem: "Cartão por aproximação (na entrega)",
+      id: "credito",
+      nome: "Cartão de crédito",
+      descricao: "Só por aproximação",
+      naMensagem: "Cartão de crédito por aproximação (na entrega)",
+    },
+    {
+      id: "debito",
+      nome: "Cartão de débito",
+      descricao: "Só por aproximação",
+      naMensagem: "Cartão de débito por aproximação (na entrega)",
     },
     { id: "dinheiro", nome: "Dinheiro", descricao: "Na entrega", naMensagem: "Dinheiro" },
   ] satisfies FormaPagamento[] as FormaPagamento[],
@@ -175,10 +186,3 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.cookie
   /\/$/,
   "",
 );
-
-export const produtoPorSlug = (slug: string) => loja.produtos.find((p) => p.slug === slug);
-
-export const menorPreco = () => Math.min(...loja.produtos.map((p) => p.preco));
-
-export const imagemProduto = (slug: string) => `/cookies/${slug}.jpg`;
-export const posterProduto = (slug: string) => `/cookies/posters/${slug}-cartaz.jpg`;

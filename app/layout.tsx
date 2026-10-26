@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, League_Spartan, Manrope, Permanent_Marker } from "next/font/google";
 import { JsonLd } from "@/components/Basicos";
+import { Catalogo } from "@/components/Catalogo";
 import { HidratarSacola } from "@/components/HidratarSacola";
 import { WhatsAppFlutuante } from "@/components/WhatsAppFlutuante";
 import { SITE_URL, loja } from "@/config/loja";
 import { jsonLdPadaria } from "@/lib/seo";
+import { obterCatalogo } from "@/server/catalogo";
 import "./globals.css";
 
 const leagueSpartan = League_Spartan({
@@ -73,10 +75,11 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
   modal,
 }: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
+  const produtos = await obterCatalogo();
   return (
     <html
       lang="pt-BR"
@@ -86,11 +89,13 @@ export default function RootLayout({
         <a className="skip" href="#conteudo">
           Pular para o conteúdo
         </a>
-        <JsonLd dados={jsonLdPadaria()} />
-        <HidratarSacola />
-        {children}
-        <WhatsAppFlutuante />
-        {modal}
+        <Catalogo produtos={produtos}>
+          <JsonLd dados={jsonLdPadaria(produtos)} />
+          <HidratarSacola />
+          {children}
+          <WhatsAppFlutuante />
+          {modal}
+        </Catalogo>
       </body>
     </html>
   );

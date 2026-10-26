@@ -9,22 +9,26 @@ import { ItemCardapio } from "@/components/ItemCardapio";
 import { Rodape } from "@/components/Moldura";
 import { ResumoSacola } from "@/components/ResumoSacola";
 import { StatusAgenda } from "@/components/StatusAgenda";
-import { loja, menorPreco } from "@/config/loja";
+import { loja } from "@/config/loja";
+import { listaNomes, menorPreco } from "@/lib/catalogo";
 import { brl } from "@/lib/formato";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { promoVigente } from "@/lib/frete";
 import { jsonLdSite } from "@/lib/seo";
+import { obterCatalogo } from "@/server/catalogo";
 import { agoraSaoPaulo, isoData } from "@/lib/tempo";
 import avatar from "../public/brand/mascote-logo.jpg";
 
-export const metadata: Metadata = {
-  title: { absolute: "Cookies Kaiju | Cookies artesanais em Mogi Mirim e Mogi Guaçu" },
-  description:
-    "Cookies recheados de 120 g feitos em Mogi Mirim: Explosão de Nutella, Ninho Black, Duplo Maltine e Kinder. Peça pelo site e receba no fim de semana.",
-  alternates: { canonical: "/" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: { absolute: "Cookies Kaiju | Cookies artesanais em Mogi Mirim e Mogi Guaçu" },
+    description: `Cookies recheados de 120 g feitos em Mogi Mirim: ${listaNomes(await obterCatalogo())}. Peça pelo site e receba no fim de semana.`,
+    alternates: { canonical: "/" },
+  };
+}
 
-export default function Home() {
+export default async function Home() {
+  const produtos = await obterCatalogo();
   return (
     <div className="com-barra">
       <JsonLd dados={jsonLdSite()} />
@@ -64,7 +68,7 @@ export default function Home() {
           </li>
           <li className="fact">
             <span className="k">Cookies</span>
-            <span className="v">a partir de {brl(menorPreco())}</span>
+            <span className="v">a partir de {brl(menorPreco(produtos))}</span>
           </li>
           <li className="fact">
             <span className="k">Taxa de entrega</span>
@@ -84,7 +88,7 @@ export default function Home() {
                 <span className="label">Todos com {loja.pesoGramas} g</span>
               </div>
               <ul className="items">
-                {loja.produtos.map((p) => (
+                {produtos.map((p) => (
                   <ItemCardapio key={p.slug} produto={p} />
                 ))}
               </ul>
@@ -94,8 +98,8 @@ export default function Home() {
               <h2 id="titulo-sobre">Cookies artesanais em Mogi Mirim</h2>
               <p>
                 A Cookies Kaiju faz cookies recheados de {loja.pesoGramas} g, grandes de verdade, assados em
-                pequenos lotes em Mogi Mirim/SP. São quatro sabores: Explosão de Nutella, Ninho Black, Duplo
-                Maltine e Kinder, a partir de {brl(menorPreco())}.
+                pequenos lotes em Mogi Mirim/SP. Os sabores: {listaNomes(produtos)}, a partir de{" "}
+                {brl(menorPreco(produtos))}.
               </p>
               <p>
                 Funcionamos aos sábados e domingos, das {HORARIO_FUNCIONAMENTO}, com delivery em Mogi Mirim e
