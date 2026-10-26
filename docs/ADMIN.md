@@ -32,7 +32,7 @@ Em **Settings → Environment Variables** (Production e Preview), além das que 
 | `ADMIN_SENHA`                  | a senha do admin                                       |
 | `ADMIN_SEGREDO_SESSAO`         | texto aleatório (32+ caracteres), diferente dos outros |
 | `GPT_API_CHAVE`                | texto aleatório (32+ caracteres), para o ChatGPT       |
-| `DATABASE_URL_LEITURA`         | ver o passo 5                                          |
+| `GPT_LEITURA_SENHA`            | senha do usuário `gpt_leitura` (ver o passo 5)         |
 
 Para gerar um texto aleatório: `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`.
 
@@ -74,8 +74,7 @@ alter default privileges in schema public grant select on tables to gpt_leitura;
 alter role gpt_leitura set statement_timeout = '10s';
 ```
 
-Monte a `DATABASE_URL_LEITURA` com a mesma URL do banco, trocando usuário e senha por `gpt_leitura` e a
-senha acima, e cadastre na Vercel.
+Cadastre a mesma senha na Vercel como `GPT_LEITURA_SENHA`. O site monta a conexão de leitura a partir da `DATABASE_URL` do deploy, então ela acompanha também as branches de Preview do Neon (que herdam os usuários do banco principal).
 
 **b) GPT personalizado.** Em chatgpt.com → **Explorar GPTs → Criar → Configurar → Ações → Criar nova ação**:
 
