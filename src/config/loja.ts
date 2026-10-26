@@ -22,6 +22,8 @@ export type Produto = {
   foto?: string | null;
   /** Cartaz enviado pelo admin (URL). Sem ele, usa /cookies/posters/{slug}-cartaz.jpg. */
   cartaz?: string | null;
+  /** Unidades em estoque (admin). Ausente/nulo = não controla. */
+  estoque?: number | null;
 };
 
 export type Janela = {

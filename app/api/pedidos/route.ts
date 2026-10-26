@@ -1,5 +1,7 @@
+import { revalidateTag } from "next/cache";
 import { REGISTRO_PEDIDOS_ATIVO } from "@/config/registro";
 import { lerCotacao } from "@/lib/assinatura";
+import { TAG_CATALOGO } from "@/server/catalogo";
 import { bancoConfigurado } from "@/server/db";
 import { esquemaEntrada, registrarPedido } from "@/server/pedidos";
 
@@ -51,6 +53,8 @@ export async function POST(request: Request) {
       segredoFrete ? lerCotacao(token, segredoFrete, agora) : null,
     );
     if (!r.ok) return responder(400, { ok: false, erro: r.erro, definitivo: true });
+    // O estoque mudou: o cardápio (esgotado) precisa refletir na próxima visita.
+    if (!r.duplicado) revalidateTag(TAG_CATALOGO, { expire: 0 });
     return responder(200, { ok: true, id: entrada.data.id, duplicado: r.duplicado });
   } catch (erro) {
     // Log sem dados pessoais (o pedido não tem nenhum): só o ID e a mensagem técnica.

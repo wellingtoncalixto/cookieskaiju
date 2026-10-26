@@ -8,6 +8,7 @@ import { IconeWhatsApp } from "@/components/Icones";
 import { loja } from "@/config/loja";
 import { REGISTRO_PEDIDOS_ATIVO } from "@/config/registro";
 import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
+import { useConferenciaEstoque } from "@/hooks/useConferenciaEstoque";
 import { brl } from "@/lib/formato";
 import { textosTaxa } from "@/lib/frete";
 import { linhaPagamento, linkWhatsApp, montarMensagemWhatsApp } from "@/lib/mensagem";
@@ -24,6 +25,7 @@ export function TelaRevisao() {
   const c = useCheckout();
   const liberada = useGuardaEtapa("revisao", c);
   const itens = useSacola((s) => s.itens);
+  const errosEstoque = useConferenciaEstoque(itens);
 
   // Resumo para o painel da loja: sem nome, telefone, endereço nem mensagem.
   const p = c.pedido;
@@ -75,7 +77,7 @@ export function TelaRevisao() {
   const horarioTexto = textoHorario(situacao.agenda, pedido.horario);
   const taxa = textosTaxa(resumo.taxa);
   const retirada = pedido.modalidade === "retirada";
-  const erros = [...c.erros.entrega.mensagens, ...c.erros.pagamento.mensagens];
+  const erros = [...errosEstoque, ...c.erros.entrega.mensagens, ...c.erros.pagamento.mensagens];
 
   const idPedido = REGISTRO_PEDIDOS_ATIVO ? (pedido.idPedido ?? undefined) : undefined;
   const mensagem = montarMensagemWhatsApp({
@@ -208,7 +210,7 @@ export function TelaRevisao() {
 
       <div className="actionbar">
         <div className="in">
-          <ListaErros visivel={pedido.tentou.revisao} mensagens={erros} />
+          <ListaErros visivel={pedido.tentou.revisao || errosEstoque.length > 0} mensagens={erros} />
           <a
             className="btn btn-primary btn-wide"
             href={linkWhatsApp(mensagem)}

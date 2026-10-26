@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { loja } from "@/config/loja";
-import { catalogoAtual, produtoPorSlug } from "@/lib/catalogo";
+import { catalogoAtual, maximoNaSacola, produtoPorSlug } from "@/lib/catalogo";
 import { sacolaExpirada } from "@/lib/tempo";
 
 /**
@@ -19,12 +19,10 @@ type EstadoSacola = {
   limpar: () => void;
 };
 
-const MAX_POR_ITEM = 50;
-
-function comQuantidade(itens: Record<string, number>, slug: string, q: number) {
+function comQuantidade(itens: Record<string, number>, slug: string, q: number, maximo: number) {
   const novo = { ...itens };
   if (q <= 0) delete novo[slug];
-  else novo[slug] = Math.min(MAX_POR_ITEM, q);
+  else novo[slug] = Math.min(maximo, q);
   return novo;
 }
 
@@ -39,7 +37,7 @@ export const useSacola = create<EstadoSacola>()(
           const p = produtoPorSlug(slug);
           if (!p || (delta > 0 && !p.disponivel)) return s;
           return {
-            itens: comQuantidade(s.itens, slug, (s.itens[slug] ?? 0) + delta),
+            itens: comQuantidade(s.itens, slug, (s.itens[slug] ?? 0) + delta, maximoNaSacola(p)),
             atualizadoEm: Date.now(),
           };
         }),
@@ -47,7 +45,10 @@ export const useSacola = create<EstadoSacola>()(
         set((s) => {
           const p = produtoPorSlug(slug);
           if (!p || (quantidade > (s.itens[slug] ?? 0) && !p.disponivel)) return s;
-          return { itens: comQuantidade(s.itens, slug, quantidade), atualizadoEm: Date.now() };
+          return {
+            itens: comQuantidade(s.itens, slug, quantidade, maximoNaSacola(p)),
+            atualizadoEm: Date.now(),
+          };
         }),
       limpar: () => set({ itens: {}, atualizadoEm: Date.now() }),
     }),
@@ -66,8 +67,8 @@ export const useSacola = create<EstadoSacola>()(
         const itens: Record<string, number> = {};
         if (!sacolaExpirada(ultima, agora, loja.sacolaExpiraHoras)) {
           for (const [slug, q] of Object.entries(dados?.itens ?? {})) {
-            if (produtoPorSlug(slug) && typeof q === "number" && q > 0)
-              itens[slug] = Math.min(MAX_POR_ITEM, Math.floor(q));
+            const p = produtoPorSlug(slug);
+            if (p && typeof q === "number" && q > 0) itens[slug] = Math.min(maximoNaSacola(p), Math.floor(q));
           }
         }
         // Voltar ao site renova o prazo.

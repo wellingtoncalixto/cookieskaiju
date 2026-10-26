@@ -49,7 +49,7 @@ describe("registro de pedidos no banco", () => {
       AGORA,
       sem,
     );
-    expect(r).toEqual({ ok: true, duplicado: false });
+    expect(r).toEqual({ ok: true, duplicado: false, semEstoque: false });
     const [p] = await b.consulta<Record<string, unknown>>(
       `select entrega_data::text as d, entrega_faixa, quantidade_cookies, receita_cookies::float8 as receita,
               frete::float8 as frete, custo_cookies::float8 as custo, combustivel::float8 as comb, status, tipo_registro
@@ -82,14 +82,22 @@ describe("registro de pedidos no banco", () => {
     expect(await b.consulta("select id from itens_pedido")).toHaveLength(1);
   });
 
-  it("recusa produto desconhecido, esgotado ou repetido, sem gravar", async () => {
+  it("esgotado não é recusado (o pedido já foi pelo WhatsApp): entra marcado sem estoque", async () => {
+    expect(
+      await registrarPedido(
+        { ...base, id: "CK-261024-EEEEEEE", itens: [{ slug: "gama", quantidade: 1 }] },
+        AGORA,
+        sem,
+      ),
+    ).toEqual({ ok: true, duplicado: false, semEstoque: true });
+    const [p] = await b.consulta<{ sem_estoque: boolean }>("select sem_estoque from pedidos");
+    expect(p.sem_estoque).toBe(true);
+  });
+
+  it("recusa produto desconhecido ou repetido, sem gravar", async () => {
     expect(
       await registrarPedido({ ...base, itens: [{ slug: "nao-existe", quantidade: 1 }] }, AGORA, sem),
     ).toEqual({ ok: false, erro: "produto_desconhecido" });
-    expect(await registrarPedido({ ...base, itens: [{ slug: "gama", quantidade: 1 }] }, AGORA, sem)).toEqual({
-      ok: false,
-      erro: "produto_esgotado",
-    });
     expect(
       await registrarPedido(
         {

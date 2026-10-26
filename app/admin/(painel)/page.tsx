@@ -1,4 +1,4 @@
-import { definirModoLoja, definirStatusPedido } from "../acoes";
+import { definirEstoqueAcao, definirModoLoja, definirStatusPedido } from "../acoes";
 import { AtualizarSozinho } from "@/components/admin/AtualizarSozinho";
 import { Aviso } from "@/components/admin/Aviso";
 import { loja } from "@/config/loja";
@@ -6,6 +6,7 @@ import { CHAVE_AGORA, calcularAgenda, horaDe, textosAgenda, type ModoLoja } from
 import { brl } from "@/lib/formato";
 import { DIAS, dataDeIso, ddmm, isoData, paredeSP } from "@/lib/tempo";
 import { bancoConfigurado } from "@/server/db";
+import { estoqueAtual } from "@/server/estoque";
 import { lerModoLoja } from "@/server/modo-loja";
 import { pedidosDaOperacao, type PedidoOperacao, type StatusPedido } from "@/server/pedidos";
 import { exigirAdmin } from "@/server/sessao-admin";
@@ -36,17 +37,18 @@ const PAGAMENTO: Record<string, string> = {
 async function carregar() {
   const agora = Date.now();
   const hoje = isoData(paredeSP(agora));
-  const [modo, pedidos] = await Promise.all([
+  const [modo, pedidos, estoque] = await Promise.all([
     lerModoLoja(),
     bancoConfigurado() ? pedidosDaOperacao(hoje) : Promise.resolve([]),
+    bancoConfigurado() ? estoqueAtual() : Promise.resolve([]),
   ]);
   const agenda = calcularAgenda(agora, { modoLoja: modo });
-  return { hoje, modo, pedidos, agenda, textos: textosAgenda(agenda, agora) };
+  return { hoje, modo, pedidos, estoque, agenda, textos: textosAgenda(agenda, agora) };
 }
 
 export default async function Operacao({ searchParams }: Props) {
   await exigirAdmin();
-  const { hoje, modo, pedidos, agenda, textos } = await carregar();
+  const { hoje, modo, pedidos, estoque, agenda, textos } = await carregar();
   const aberto = agenda.modo === "aberta";
 
   const porDia = new Map<string, PedidoOperacao[]>();
@@ -76,6 +78,47 @@ export default async function Operacao({ searchParams }: Props) {
         <p className="adm-mute" style={{ margin: "8px 0 0" }}>
           Fechado: o site avisa e só deixa agendar. Aberto: libera pedido para hoje mesmo fora do horário.
         </p>
+      </section>
+
+      <h2>Estoque</h2>
+      <section className="adm-card" aria-label="Estoque por sabor">
+        <p className="adm-mute" style={{ margin: "0 0 8px" }}>
+          Unidades prontas. Cada pedido do site reserva as dele; cancelar devolve. Em zero, o site mostra
+          esgotado. Vazio = não controlar.
+        </p>
+        <div style={{ display: "grid", gap: 8 }}>
+          {estoque.map((e) => (
+            <form
+              key={e.id}
+              action={definirEstoqueAcao}
+              className="adm-acoes"
+              style={{ marginTop: 0, alignItems: "center" }}
+            >
+              <input type="hidden" name="id" value={e.id} />
+              <input type="hidden" name="nome" value={e.nome} />
+              <span style={{ flex: "1 1 140px" }}>
+                {e.nome}
+                {e.estoque === 0 && (
+                  <span className="adm-selo cancelado" style={{ marginLeft: 8 }}>
+                    Esgotado
+                  </span>
+                )}
+              </span>
+              <input
+                name="estoque"
+                type="number"
+                min={0}
+                step={1}
+                defaultValue={e.estoque ?? ""}
+                aria-label={`Estoque de ${e.nome}`}
+                style={{ width: 96 }}
+              />
+              <button className="adm-btn pequeno" type="submit">
+                Salvar
+              </button>
+            </form>
+          ))}
+        </div>
       </section>
 
       <h2>Pedidos de hoje e agendados</h2>
@@ -122,7 +165,18 @@ function Pedido({ p, hoje }: { p: PedidoOperacao; hoje: string }) {
     <article className={`adm-card adm-pedido ${p.status}`}>
       <div className="cab">
         <span className="adm-codigo">{p.id}</span>
-        <span className={`adm-selo ${p.status}`}>{ROTULO_STATUS[p.status]}</span>
+        <span>
+          {p.semEstoque && (
+            <span
+              className="adm-selo cancelado"
+              style={{ marginRight: 6 }}
+              title="Chegou sem unidades suficientes"
+            >
+              Sem estoque
+            </span>
+          )}
+          <span className={`adm-selo ${p.status}`}>{ROTULO_STATUS[p.status]}</span>
+        </span>
       </div>
       <div className="adm-mute">
         {p.modalidade === "retirada" ? "Retirada" : `Entrega${p.cidade ? ` · ${p.cidade}` : ""}`} ·{" "}

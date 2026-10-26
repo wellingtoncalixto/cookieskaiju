@@ -27,7 +27,9 @@ export function ItemCardapio({ produto: p }: { produto: Produto }) {
           )}
         </span>
       </Link>
-      <BotaoAdicionar produto={{ slug: p.slug, nome: p.nome, disponivel: p.disponivel }} />
+      <BotaoAdicionar
+        produto={{ slug: p.slug, nome: p.nome, disponivel: p.disponivel, estoque: p.estoque }}
+      />
     </li>
   );
 }

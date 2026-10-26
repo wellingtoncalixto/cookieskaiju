@@ -94,6 +94,10 @@ export default async function EditarProduto({ params, searchParams }: Props) {
             </select>
           </label>
           <label className="adm-campo">
+            <span>Estoque (unidades prontas) — vazio = não controlar</span>
+            <input name="estoque" type="number" min={0} step={1} defaultValue={p?.estoque ?? ""} />
+          </label>
+          <label className="adm-campo">
             <span>Ordem no cardápio</span>
             <input name="ordem" type="number" defaultValue={p?.ordem ?? proximaOrdem} />
           </label>

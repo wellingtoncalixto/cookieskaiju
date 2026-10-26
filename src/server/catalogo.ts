@@ -9,11 +9,12 @@ export const TAG_CATALOGO = "catalogo";
 const lerDoBanco = unstable_cache(
   async (): Promise<Produto[]> =>
     obterBanco().consulta<Produto>(
-      `select slug, nome, destaque, descricao, alt, preco::float8 as preco, disponivel, foto_url as foto,
-              cartaz_url as cartaz
+      `select slug, nome, destaque, descricao, alt, preco::float8 as preco,
+              (disponivel and (estoque is null or estoque > 0)) as disponivel, estoque,
+              foto_url as foto, cartaz_url as cartaz
          from produtos where ativo order by ordem, id`,
     ),
-  ["catalogo-v1"],
+  ["catalogo-v2"],
   { tags: [TAG_CATALOGO] },
 );
 

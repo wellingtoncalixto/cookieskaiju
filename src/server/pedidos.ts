@@ -10,6 +10,7 @@ import { isoData, paredeSP } from "@/lib/tempo";
 import { calcularValoresPedido } from "@/lib/valores-pedido";
 import { configCustos, mapaConfiguracao } from "@/server/configuracao";
 import { epochMs, obterBanco } from "@/server/db";
+import { baixarEstoquePedido, devolverEstoquePedido, rebaixarEstoquePedido } from "@/server/estoque";
 
 /**
  * O que o navegador manda para /api/pedidos. Sem nome, telefone, endereço nem mensagem:
@@ -32,7 +33,8 @@ export const esquemaEntrada = z.object({
 });
 export type EntradaPedido = z.infer<typeof esquemaEntrada>;
 
-export type ResultadoRegistro = { ok: true; duplicado: boolean } | { ok: false; erro: string };
+export type ResultadoRegistro =
+  { ok: true; duplicado: boolean; semEstoque: boolean } | { ok: false; erro: string };
 
 type ProdutoBanco = {
   id: number;
@@ -67,7 +69,7 @@ export async function registrarPedido(
   for (const i of entrada.itens) {
     const p = porSlug.get(i.slug);
     if (!p) return { ok: false, erro: "produto_desconhecido" };
-    if (!p.disponivel) return { ok: false, erro: "produto_esgotado" };
+    // Esgotado não recusa: o pedido já foi pelo WhatsApp. Ele entra marcado "sem estoque" para a loja resolver.
     itens.push({ produto: p, quantidade: i.quantidade });
   }
   const quantidade = itens.reduce((s, i) => s + i.quantidade, 0);
@@ -150,7 +152,16 @@ export async function registrarPedido(
       ),
     ],
   );
-  return { ok: true, duplicado: gravados.length === 0 };
+  if (gravados.length === 0) return { ok: true, duplicado: true, semEstoque: false };
+
+  // Reserva as unidades (cada produto numa instrução condicional: nunca vende a mesma unidade duas vezes).
+  const faltou =
+    (await baixarEstoquePedido(
+      entrada.id,
+      itens.map((i) => ({ produtoId: i.produto.id, quantidade: i.quantidade })),
+    )) || itens.some((i) => !i.produto.disponivel);
+  if (faltou) await db.consulta("update pedidos set sem_estoque = true where id = $1", [entrada.id]);
+  return { ok: true, duplicado: false, semEstoque: faltou };
 }
 
 /** Usa o nome oficial quando a cidade é uma das atendidas ("mogi guacu" → "Mogi Guaçu"). */
@@ -173,6 +184,7 @@ export type PedidoOperacao = {
   cidade: string;
   pagamento: string | null;
   status: StatusPedido;
+  semEstoque: boolean;
   receita: number;
   frete: number | null;
   total: number;
@@ -184,7 +196,7 @@ export async function pedidosDaOperacao(hoje: string): Promise<PedidoOperacao[]>
   return obterBanco().consulta<PedidoOperacao>(
     `select p.id, ${epochMs("p.criado_em")} as "criadoEm", p.entrega_data::text as "entregaData",
             p.entrega_faixa as "entregaFaixa", p.modalidade, p.cidade, p.pagamento, p.status,
-            p.receita_cookies::float8 as receita, p.frete::float8 as frete,
+            p.sem_estoque as "semEstoque", p.receita_cookies::float8 as receita, p.frete::float8 as frete,
             (p.receita_cookies + coalesce(p.frete, 0))::float8 as total,
             coalesce((select json_agg(json_build_object('nome', i.produto_nome, 'quantidade', i.quantidade,
                                                          'preco', i.preco_unitario::float8) order by i.id)
@@ -196,10 +208,20 @@ export async function pedidosDaOperacao(hoje: string): Promise<PedidoOperacao[]>
   );
 }
 
+const INATIVOS: StatusPedido[] = ["cancelado", "abandonado"];
+
+/** Muda o status. Cancelado/abandonado devolve o estoque reservado; reativado reserva de novo. */
 export async function mudarStatus(id: string, status: StatusPedido): Promise<boolean> {
-  const r = await obterBanco().consulta(
-    "update pedidos set status = $2, status_em = now() where id = $1 returning id",
+  const [r] = await obterBanco().consulta<{ antes: StatusPedido }>(
+    `with antes as (select status from pedidos where id = $1),
+          up as (update pedidos set status = $2, status_em = now() where id = $1 returning id)
+     select antes.status as antes from antes, up`,
     [id, status],
   );
-  return r.length > 0;
+  if (!r) return false;
+  const eraInativo = INATIVOS.includes(r.antes);
+  const ficaInativo = INATIVOS.includes(status);
+  if (!eraInativo && ficaInativo) await devolverEstoquePedido(id);
+  if (eraInativo && !ficaInativo) await rebaixarEstoquePedido(id);
+  return true;
 }

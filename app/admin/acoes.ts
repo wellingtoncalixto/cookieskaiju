@@ -19,6 +19,8 @@ import {
   salvarProduto,
   salvarReceita,
 } from "@/server/cadastros";
+import { definirEstoque } from "@/server/estoque";
+import { CATEGORIAS_DESPESA, adicionarDespesa, excluirDespesa } from "@/server/financeiro";
 import { STATUS, mudarStatus } from "@/server/pedidos";
 import {
   adminConfigurado,
@@ -33,7 +35,9 @@ import {
 /** Volta para a página com um aviso (?ok= ou ?erro=). */
 function voltar(caminho: string, aviso: { ok?: string; erro?: string }): never {
   const q = new URLSearchParams(aviso as Record<string, string>).toString();
-  redirect(q ? `${caminho}?${q}` : caminho);
+  const [base, ancora] = caminho.split("#");
+  const sep = base.includes("?") ? "&" : "?";
+  redirect(q ? `${base}${sep}${q}${ancora ? `#${ancora}` : ""}` : caminho);
 }
 
 const texto = (f: FormData, k: string) => String(f.get(k) ?? "").trim();
@@ -92,7 +96,26 @@ export async function definirStatusPedido(form: FormData) {
   if (!(STATUS as readonly string[]).includes(status)) voltar("/admin", { erro: "Status inválido." });
   if (!(await mudarStatus(pedido, status as (typeof STATUS)[number])))
     voltar("/admin", { erro: "Pedido não encontrado." });
+  // Cancelar/reativar mexe no estoque: o site precisa refletir.
+  revalidateTag(TAG_CATALOGO, { expire: 0 });
   voltar("/admin", {});
+}
+
+/** Lê o campo de estoque: vazio = não controla; senão, inteiro de 0 a 10000. */
+function lerEstoque(form: FormData): number | null | "invalido" {
+  const v = numero(form, "estoque");
+  if (v == null) return null;
+  return Number.isInteger(v) && v >= 0 && v <= 10000 ? v : "invalido";
+}
+
+export async function definirEstoqueAcao(form: FormData) {
+  await exigirAdmin();
+  const pid = id(form);
+  const estoque = lerEstoque(form);
+  if (!pid || estoque === "invalido") voltar("/admin", { erro: "Informe um número inteiro de unidades." });
+  await definirEstoque(pid, estoque);
+  revalidateTag(TAG_CATALOGO, { expire: 0 });
+  voltar("/admin", { ok: `Estoque de ${texto(form, "nome")} atualizado.` });
 }
 
 // ---------------------------------------------------------------- produtos
@@ -159,6 +182,8 @@ export async function salvarProdutoAcao(form: FormData) {
       cartaz,
       receitaId: id(form, "receitaId"),
     });
+    const estoque = lerEstoque(form);
+    if (estoque !== "invalido" && (atual?.estoque ?? null) !== estoque) await definirEstoque(salvo, estoque);
   } catch (e) {
     const duplicado = e instanceof Error && /unique|duplicate/i.test(e.message);
     voltar(caminho, {
@@ -279,4 +304,34 @@ export async function salvarFornoAcao(form: FormData) {
   }
   await salvarConfiguracao(valores);
   voltar(P, { ok: "Parâmetros do forno salvos. Custos recalculados." });
+}
+
+// ---------------------------------------------------------------- financeiro
+
+/** Volta para a tela do financeiro com o mesmo filtro de período (só caminhos do próprio admin). */
+function caminhoDeVolta(form: FormData) {
+  const v = texto(form, "volta");
+  return v.startsWith("/admin/financeiro") && !v.includes("//") ? v.split("#")[0] : "/admin/financeiro";
+}
+
+export async function adicionarDespesaAcao(form: FormData) {
+  await exigirAdmin();
+  const volta = caminhoDeVolta(form);
+  const data = texto(form, "data");
+  const categoria = texto(form, "categoria");
+  const valor = numero(form, "valor");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) voltar(volta, { erro: "Data inválida." });
+  if (!(CATEGORIAS_DESPESA as readonly string[]).includes(categoria))
+    voltar(volta, { erro: "Escolha a categoria." });
+  if (valor == null || !(valor > 0) || valor > 1_000_000) voltar(volta, { erro: "Valor inválido." });
+  await adicionarDespesa({ data, categoria, descricao: texto(form, "descricao").slice(0, 200), valor });
+  voltar(volta, { ok: "Despesa lançada." });
+}
+
+export async function excluirDespesaAcao(form: FormData) {
+  await exigirAdmin();
+  const volta = caminhoDeVolta(form);
+  const i = id(form);
+  if (i) await excluirDespesa(i);
+  voltar(volta, { ok: "Despesa excluída." });
 }

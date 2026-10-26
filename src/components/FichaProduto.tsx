@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { loja, type Produto } from "@/config/loja";
-import { imagemProduto } from "@/lib/catalogo";
+import { imagemProduto, maximoNaSacola } from "@/lib/catalogo";
 import { brl } from "@/lib/formato";
 import { useSacola } from "@/store/sacola";
 
@@ -54,6 +54,9 @@ export function FichaProduto({ produto: p, variante }: Props) {
         <ul className="meta">
           <li>{loja.pesoGramas} g</li>
           <li className="tnum">{brl(p.preco)}</li>
+          {p.disponivel && p.estoque != null && p.estoque <= 5 && (
+            <li>{p.estoque === 1 ? "Última unidade" : `Últimas ${p.estoque} unidades`}</li>
+          )}
         </ul>
       </div>
       <div className="p-foot">
@@ -72,8 +75,8 @@ export function FichaProduto({ produto: p, variante }: Props) {
           <button
             type="button"
             aria-label="Aumentar"
-            disabled={!p.disponivel}
-            onClick={() => setQtd(qtd + 1)}
+            disabled={!p.disponivel || qtd >= maximoNaSacola(p)}
+            onClick={() => setQtd(Math.min(maximoNaSacola(p), qtd + 1))}
           >
             +
           </button>

@@ -7,6 +7,13 @@ O `/admin` substitui o Painel Comercial e a planilha de precificação:
 - **Produtos**: cardápio do site (nome, preço de venda, foto, esgotado, ativo, ordem). O site lê daqui.
 - **Precificação**: insumos, receitas (a massa é uma receita "base" usada pelos sabores) e forno elétrico.
   Qualquer mudança recalcula o custo, o lucro e a margem de todos os sabores.
+- **Estoque** (na Operação e em cada produto): unidades prontas de cada sabor. Cada pedido do site reserva as
+  dele; cancelado ou abandonado devolve. Em zero, o site mostra "Esgotado", a sacola não passa do disponível e a
+  revisão do pedido confere o estoque antes de liberar o envio. Vazio = não controlar.
+  Se dois clientes levarem a última unidade no mesmo segundo, o segundo pedido chega marcado **Sem estoque**.
+- **Financeiro**: por período (semana, mês, mês passado, 30 dias, ano, tudo ou datas escolhidas): faturamento,
+  custos (cookies, embalagem, taxas, combustível), contribuição, despesas e resultado; vendas por sabor, por
+  entrega × retirada, por pagamento e por origem; lançamento de despesas por categoria.
 
 Nada de dados pessoais vai para o banco: nem nome, nem telefone, nem endereço.
 

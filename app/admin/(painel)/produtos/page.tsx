@@ -18,7 +18,8 @@ export default async function Produtos({ searchParams }: Props) {
       <Aviso busca={searchParams} />
       <h1>Produtos</h1>
       <p className="adm-mute">
-        O cardápio do site vem daqui. Inativo some do site; indisponível aparece como esgotado.
+        O cardápio do site vem daqui. Inativo some do site; indisponível ou com estoque zero aparece como
+        esgotado. Estoque “—” = não controlado.
       </p>
       <div className="adm-acoes" style={{ marginBottom: 12 }}>
         <Link className="adm-btn primario" href="/admin/produtos/novo">
@@ -35,6 +36,7 @@ export default async function Produtos({ searchParams }: Props) {
               <th className="num">Custo</th>
               <th className="num">Lucro</th>
               <th className="num">Margem</th>
+              <th className="num">Estoque</th>
               <th>Situação</th>
             </tr>
           </thead>
@@ -54,7 +56,8 @@ export default async function Produtos({ searchParams }: Props) {
                 <td className="num">
                   {p.custo == null || !p.preco ? "—" : pct((p.preco - p.custo) / p.preco)}
                 </td>
-                <td>{!p.ativo ? "Inativo" : p.disponivel ? "À venda" : "Esgotado"}</td>
+                <td className="num">{p.estoque ?? "—"}</td>
+                <td>{!p.ativo ? "Inativo" : p.disponivel && p.estoque !== 0 ? "À venda" : "Esgotado"}</td>
               </tr>
             ))}
           </tbody>

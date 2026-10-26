@@ -19,10 +19,11 @@ export type ProdutoAdmin = {
   cartaz: string | null;
   receitaId: number | null;
   custo: number | null;
+  estoque: number | null;
 };
 
 const COLUNAS_PRODUTO = `id, slug, nome, destaque, descricao, alt, preco::float8 as preco, disponivel, ativo, ordem,
-  foto_url as foto, cartaz_url as cartaz, receita_id as "receitaId", custo_unitario::float8 as custo`;
+  foto_url as foto, cartaz_url as cartaz, receita_id as "receitaId", custo_unitario::float8 as custo, estoque`;
 
 export const listarProdutos = () =>
   obterBanco().consulta<ProdutoAdmin>(
@@ -35,7 +36,7 @@ export async function obterProduto(id: number) {
   )[0];
 }
 
-export type DadosProduto = Omit<ProdutoAdmin, "id" | "custo">;
+export type DadosProduto = Omit<ProdutoAdmin, "id" | "custo" | "estoque">;
 
 /** Cria (id nulo) ou atualiza. Mudou o preço: registra no histórico. Mudou a receita: recalcula o custo. */
 export async function salvarProduto(id: number | null, d: DadosProduto): Promise<number> {

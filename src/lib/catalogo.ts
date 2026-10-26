@@ -15,6 +15,9 @@ export function definirCatalogo(lista: Produto[]) {
 
 export const produtoPorSlug = (slug: string, lista: Produto[] = atual) => lista.find((p) => p.slug === slug);
 
+/** Quantas unidades do sabor cabem na sacola: até 50, e nunca mais que o estoque. */
+export const maximoNaSacola = (p: Pick<Produto, "estoque">) => Math.min(50, p.estoque ?? 50);
+
 export const menorPreco = (lista: Produto[] = atual) => Math.min(...lista.map((p) => p.preco));
 
 export const imagemProduto = (p: Pick<Produto, "slug" | "foto">) => p.foto || `/cookies/${p.slug}.jpg`;
