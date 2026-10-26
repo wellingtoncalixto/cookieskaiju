@@ -1,10 +1,11 @@
 import { sair } from "../acoes";
 import { NavAdmin } from "@/components/admin/NavAdmin";
-import { bancoConfigurado } from "@/server/db";
+import { hostDoBanco, problemaNoBanco } from "@/server/db";
 import { exigirAdmin } from "@/server/sessao-admin";
 
 export default async function LayoutPainel({ children }: { children: React.ReactNode }) {
   await exigirAdmin();
+  const problema = await problemaNoBanco();
   return (
     <>
       <header className="adm-topo">
@@ -14,12 +15,11 @@ export default async function LayoutPainel({ children }: { children: React.React
         </div>
       </header>
       <main className="adm-wrap">
-        {!bancoConfigurado() && (
-          <p className="adm-aviso erro">
-            Banco de dados não configurado: conecte o Neon ao projeto na Vercel (DATABASE_URL).
-          </p>
-        )}
-        {children}
+        {/* Com o banco fora do ar ou sem tabelas, mostra o motivo em vez de quebrar a página. */}
+        {problema ? <p className="adm-aviso erro">{problema}</p> : children}
+        <p className="adm-mute" style={{ marginTop: 32 }}>
+          Banco: {hostDoBanco()}
+        </p>
       </main>
     </>
   );

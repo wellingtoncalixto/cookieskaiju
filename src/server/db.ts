@@ -75,3 +75,29 @@ export function usarBanco(b: Banco | null) {
 
 /** Instante (timestamptz) → milissegundos, como número. */
 export const epochMs = (coluna: string) => `(extract(epoch from ${coluna}) * 1000)::float8`;
+
+/** Endereço do banco em uso (sem usuário nem senha), para o admin mostrar. */
+export function hostDoBanco(): string {
+  const url = process.env.DATABASE_URL ?? "";
+  if (url.startsWith("pglite:")) return "banco local (PGlite)";
+  try {
+    return new URL(url).host;
+  } catch {
+    return "não configurado";
+  }
+}
+
+/** Confere se o banco responde e tem as tabelas. Devolve a mensagem do erro, ou null se está tudo certo. */
+export async function problemaNoBanco(): Promise<string | null> {
+  if (!bancoConfigurado())
+    return "Banco de dados não configurado: conecte o Neon ao projeto na Vercel (DATABASE_URL).";
+  try {
+    await obterBanco().consulta("select 1 from estado_loja limit 1");
+    return null;
+  } catch (erro) {
+    const msg = erro instanceof Error ? erro.message : String(erro);
+    return /does not exist|não existe/i.test(msg)
+      ? `O banco (${hostDoBanco()}) ainda não tem as tabelas: rode "npm run db:migrar" nele. Detalhe: ${msg}`
+      : `Não foi possível acessar o banco (${hostDoBanco()}): ${msg}`;
+  }
+}
