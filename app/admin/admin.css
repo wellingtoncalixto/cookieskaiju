@@ -404,3 +404,256 @@
   max-width: 380px;
   margin: 12vh auto 0;
 }
+
+/* ---------------------------------------------------------------- financeiro: indicadores e gráficos */
+.adm {
+  /* Paleta de dados (modo escuro), validada contra o fundo dos cartões (#1a1614). */
+  --viz-1: #3987e5;
+  --viz-2: #d95926;
+  --viz-3: #199e70;
+  --viz-4: #c98500;
+  --viz-neg: #e66767;
+  --viz-cinza: #6f6d68;
+  --viz-grade: #2c2c2a;
+  --viz-base: #4a4945;
+}
+.adm-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+@media (min-width: 760px) {
+  .adm-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+.adm-kpi {
+  background: var(--adm-card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.adm-kpi > span:first-child {
+  font-size: 13px;
+  color: var(--bone-dim);
+}
+.adm-kpi b {
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+.adm-kpi small {
+  font-size: 12px;
+  color: var(--bone-mute);
+}
+.adm-graficos {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 900px) {
+  .adm-graficos.tres {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+.adm-card h3.titulo-graf {
+  font-size: 15px;
+  margin: 0 0 2px;
+}
+.adm-card .sub-graf {
+  font-size: 12px;
+  color: var(--bone-mute);
+  margin: 0 0 12px;
+}
+
+.graf {
+  position: relative;
+}
+.graf-dica {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  background: #0d0d0d;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: grid;
+  gap: 1px;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--bone-dim);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.graf-dica b {
+  font-size: 14px;
+  color: var(--color-bone);
+}
+
+/* barras horizontais */
+.graf-linha {
+  display: grid;
+  grid-template-columns: clamp(124px, 40%, 220px) 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  border-radius: 6px;
+  outline-offset: 2px;
+}
+.graf-linha:hover .graf-barra,
+.graf-linha:focus-visible .graf-barra {
+  filter: brightness(1.15);
+}
+.graf-rotulo {
+  font-size: 13px;
+  color: var(--bone-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.graf-trilho {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.graf-barra {
+  display: block;
+  height: 16px;
+  min-width: 2px;
+  border-radius: 0 4px 4px 0;
+  flex: none;
+  max-width: calc(100% - 92px);
+}
+.graf-valor {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-bone);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* colunas no tempo */
+.graf-colunas {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+}
+.graf-eixo {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 180px;
+  font-size: 11px;
+  color: #898781;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-6px);
+}
+.graf-area {
+  position: relative;
+  min-width: 0;
+}
+.graf-grade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--viz-grade);
+  pointer-events: none;
+}
+.graf-grade:first-child {
+  background: var(--viz-base);
+}
+.graf-cols {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  align-items: stretch;
+  overflow-x: auto;
+}
+.graf-col {
+  flex: 1 0 28px;
+  display: grid;
+  grid-template-rows: 180px auto;
+  justify-items: center;
+  border-radius: 6px;
+  outline-offset: 2px;
+}
+.graf-col:hover .graf-col-barra,
+.graf-col:focus-visible .graf-col-barra {
+  filter: brightness(1.2);
+}
+.graf-col-alto {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.graf-col-barra {
+  display: block;
+  width: min(24px, 70%);
+  min-height: 2px;
+  background: var(--viz-1);
+  border-radius: 4px 4px 0 0;
+}
+.graf-col-valor {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-bone);
+  white-space: nowrap;
+  margin-bottom: 3px;
+}
+.graf-col-rotulo {
+  font-size: 11px;
+  color: #898781;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+/* composição (parte do todo) */
+.graf-pilha {
+  display: flex;
+  gap: 2px;
+  height: 20px;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.graf-segmento {
+  display: block;
+  min-width: 3px;
+  outline-offset: -2px;
+}
+.graf-segmento:hover,
+.graf-segmento:focus-visible {
+  filter: brightness(1.2);
+}
+.graf-legenda {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+.graf-legenda li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+}
+.graf-legenda b {
+  font-variant-numeric: tabular-nums;
+}
+.graf-chave {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}

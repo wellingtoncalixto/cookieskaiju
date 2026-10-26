@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { adicionarDespesaAcao, excluirDespesaAcao } from "../../acoes";
 import { Aviso } from "@/components/admin/Aviso";
+import {
+  BarraComposicao,
+  BarrasHorizontais,
+  Colunas,
+  type Coluna,
+  type Cor,
+  type ItemBarra,
+  type Parte,
+} from "@/components/admin/Graficos";
 import { brl } from "@/lib/formato";
 import { isoData, paredeSP, somarDias } from "@/lib/tempo";
 import { bancoConfigurado } from "@/server/db";
@@ -10,7 +19,9 @@ import {
   quebra,
   resumoFinanceiro,
   vendasPorSabor,
+  vendasPorSemana,
   type LinhaQuebra,
+  type PontoSemana,
 } from "@/server/financeiro";
 import { exigirAdmin } from "@/server/sessao-admin";
 
@@ -39,6 +50,9 @@ const ROTULOS: Record<string, string> = {
 
 const pct = (v: number) => `${(v * 100).toFixed(1).replace(".", ",")}%`;
 const dataBr = (iso: string) => iso.split("-").reverse().join("/");
+const ddmm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+const curto = (v: number) =>
+  Math.abs(v) >= 1000 ? `R$ ${(v / 1000).toFixed(1).replace(".", ",")} mil` : brl(v);
 const valido = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
 /** Período escolhido (datas de entrega, inclusive), no horário de São Paulo. */
@@ -79,6 +93,38 @@ function intervalo(q: Busca, hoje: Date, h: string) {
   }
 }
 
+/** Semanas entre a primeira e a última venda, incluindo as sem venda (zero), para o tempo não "pular". */
+function semanasCompletas(pontos: PontoSemana[]) {
+  if (!pontos.length) return [];
+  const mapa = new Map(pontos.map((p) => [p.inicio, p]));
+  const fim = Date.parse(`${pontos.at(-1)!.inicio}T12:00:00Z`);
+  const lista: PontoSemana[] = [];
+  for (let t = Date.parse(`${pontos[0].inicio}T12:00:00Z`); t <= fim; t += 7 * 86_400_000) {
+    const iso = new Date(t).toISOString().slice(0, 10);
+    lista.push(mapa.get(iso) ?? { inicio: iso, pedidos: 0, faturamento: 0, cookies: 0 });
+  }
+  return lista.slice(-26);
+}
+
+/** Fatias de uma quebra (modalidade, pagamento, origem), sempre na mesma ordem e cor. */
+function partes(linhas: LinhaQuebra[], ordem: string[]): Parte[] {
+  const cores: Cor[] = ["azul", "laranja", "verde", "amarelo"];
+  const chaves = [
+    ...ordem.filter((o) => linhas.some((l) => l.chave === o)),
+    ...linhas.map((l) => l.chave).filter((c) => !ordem.includes(c)),
+  ];
+  return chaves.map((chave) => {
+    const l = linhas.find((x) => x.chave === chave)!;
+    const posicao = ordem.includes(chave) ? ordem.indexOf(chave) : ordem.length;
+    return {
+      rotulo: ROTULOS[chave] ?? chave,
+      valor: l.valor,
+      texto: `${brl(l.valor)} · ${l.pedidos} ped.`,
+      cor: cores[Math.min(posicao, cores.length - 1)],
+    };
+  });
+}
+
 export default async function Financeiro({ searchParams }: Props) {
   await exigirAdmin();
   const q = await searchParams;
@@ -89,13 +135,14 @@ export default async function Financeiro({ searchParams }: Props) {
       ? `/admin/financeiro?de=${per.de}&ate=${per.ate}`
       : `/admin/financeiro?p=${per.id}`;
   if (!bancoConfigurado()) return <h1>Financeiro</h1>;
-  const [r, sabores, modalidade, pagamento, origem, despesas] = await Promise.all([
+  const [r, sabores, modalidade, pagamento, origem, despesas, semanas] = await Promise.all([
     resumoFinanceiro(per.de, per.ate),
     vendasPorSabor(per.de, per.ate),
     quebra("modalidade", per.de, per.ate),
     quebra("pagamento", per.de, per.ate),
     quebra("origem", per.de, per.ate),
     listarDespesas(per.de, per.ate),
+    vendasPorSemana(per.de, per.ate),
   ]);
   const resultado = r.contribuicao - r.despesas;
   const porCategoria = Object.entries(
@@ -104,6 +151,31 @@ export default async function Financeiro({ searchParams }: Props) {
       {},
     ),
   ).sort((a, b) => b[1] - a[1]);
+
+  // "Para onde foi o dinheiro": do faturamento até o resultado.
+  const cascata: ItemBarra[] = [
+    { rotulo: "Faturamento", valor: r.faturamento, texto: brl(r.faturamento), cor: "azul" },
+    { rotulo: "Custo dos cookies", valor: r.custoCookies, texto: `− ${brl(r.custoCookies)}`, cor: "cinza" },
+    { rotulo: "Embalagem", valor: r.embalagem, texto: `− ${brl(r.embalagem)}`, cor: "cinza" },
+    { rotulo: "Taxas de pagamento", valor: r.taxas, texto: `− ${brl(r.taxas)}`, cor: "cinza" },
+    { rotulo: "Combustível", valor: r.combustivel, texto: `− ${brl(r.combustivel)}`, cor: "cinza" },
+    { rotulo: "Despesas", valor: r.despesas, texto: `− ${brl(r.despesas)}`, cor: "cinza" },
+    {
+      rotulo: resultado < 0 ? "Prejuízo" : "Resultado",
+      valor: resultado,
+      texto: brl(resultado),
+      cor: resultado < 0 ? "vermelho" : "azul",
+    },
+  ];
+  const pontos: Coluna[] = semanasCompletas(semanas).map((s) => {
+    const sabado = isoData(somarDias(new Date(`${s.inicio}T12:00:00Z`), 5));
+    return {
+      rotulo: ddmm(sabado),
+      valor: s.faturamento,
+      texto: brl(s.faturamento),
+      detalhe: `Fim de semana de ${ddmm(sabado)} · ${s.pedidos} pedido(s), ${s.cookies} cookies`,
+    };
+  });
 
   return (
     <>
@@ -148,39 +220,218 @@ export default async function Financeiro({ searchParams }: Props) {
         </button>
       </form>
       <p className="adm-mute">
-        {per.id === "tudo" ? "Todo o histórico" : `De ${dataBr(per.de)} a ${dataBr(per.ate)}`} · pela data de
-        entrega · só pedidos concluídos
+        {per.id === "tudo" ? "Todo o histórico" : `De ${dataBr(per.de)} a ${dataBr(per.ate)}`} · vendas =
+        pedidos concluídos, pela data de entrega
       </p>
 
-      <div className="adm-resumo">
-        <div>
+      <div className="adm-kpis">
+        <div className="adm-kpi">
           <span>Faturamento</span>
           <b>{brl(r.faturamento)}</b>
+          <small>
+            cookies {curto(r.receitaCookies)} + frete {curto(r.frete)}
+          </small>
         </div>
-        <div>
-          <span>Resultado</span>
-          <b style={{ color: resultado < 0 ? "var(--color-err)" : "var(--color-ok)" }}>{brl(resultado)}</b>
+        <div className="adm-kpi">
+          <span>{resultado < 0 ? "Prejuízo" : "Resultado"}</span>
+          <b style={{ color: resultado < 0 ? "var(--color-err)" : undefined }}>{brl(resultado)}</b>
+          <small>{r.faturamento ? `${pct(resultado / r.faturamento)} do faturamento` : "—"}</small>
         </div>
-        <div>
+        <div className="adm-kpi">
           <span>Pedidos concluídos</span>
           <b>{r.pedidos}</b>
+          <small>{r.cookies} cookies vendidos</small>
         </div>
-        <div>
+        <div className="adm-kpi">
           <span>Ticket médio</span>
           <b>{r.pedidos ? brl(r.faturamento / r.pedidos) : "—"}</b>
-        </div>
-        <div>
-          <span>Cookies vendidos</span>
-          <b>{r.cookies}</b>
-        </div>
-        <div>
-          <span>Margem do resultado</span>
-          <b>{r.faturamento ? pct(resultado / r.faturamento) : "—"}</b>
+          <small>por pedido</small>
         </div>
       </div>
+      {(r.pendentes > 0 || r.perdidos > 0 || r.semContribuicao > 0) && (
+        <p className="adm-mute">
+          {r.pendentes > 0 &&
+            `Ainda pendentes: ${r.pendentes} pedido(s), ${brl(r.valorPendente)} (fora das contas). `}
+          {r.perdidos > 0 && `Cancelados ou abandonados: ${r.perdidos}. `}
+          {r.semContribuicao > 0 &&
+            `${r.semContribuicao} pedido(s) com frete a confirmar ficaram fora dos custos.`}
+        </p>
+      )}
 
-      <h2>Resultado do período</h2>
-      <div className="adm-card">
+      <section className="adm-card" aria-labelledby="g-dinheiro">
+        <h3 className="titulo-graf" id="g-dinheiro">
+          Para onde foi o dinheiro
+        </h3>
+        <p className="sub-graf">Do faturamento ao {resultado < 0 ? "prejuízo" : "resultado"} do período</p>
+        <BarrasHorizontais
+          rotulo="Do faturamento ao resultado"
+          itens={cascata}
+          maximo={Math.max(r.faturamento, Math.abs(resultado))}
+        />
+      </section>
+
+      <div className="adm-graficos" style={{ marginTop: 12 }}>
+        <section className="adm-card" aria-labelledby="g-semanas">
+          <h3 className="titulo-graf" id="g-semanas">
+            Faturamento por fim de semana
+          </h3>
+          <p className="sub-graf">Data do sábado · toque numa coluna para ver os pedidos</p>
+          <Colunas rotulo="Faturamento por fim de semana" pontos={pontos} />
+        </section>
+
+        <section className="adm-card" aria-labelledby="g-sabores">
+          <h3 className="titulo-graf" id="g-sabores">
+            Cookies vendidos por sabor
+          </h3>
+          <p className="sub-graf">Quantidade · toque para ver receita e lucro bruto</p>
+          <BarrasHorizontais
+            rotulo="Cookies vendidos por sabor"
+            itens={sabores.map((s) => ({
+              rotulo: s.sabor,
+              valor: s.cookies,
+              texto: `${s.cookies} un.`,
+              detalhe: `${brl(s.receita)} de receita${s.custo == null ? "" : ` · lucro bruto ${brl(s.receita - s.custo)}`}`,
+            }))}
+          />
+        </section>
+      </div>
+
+      <div className="adm-graficos tres" style={{ marginTop: 12 }}>
+        <section className="adm-card" aria-labelledby="g-modalidade">
+          <h3 className="titulo-graf" id="g-modalidade">
+            Entrega × retirada
+          </h3>
+          <p className="sub-graf">Faturamento</p>
+          <BarraComposicao rotulo="Entrega e retirada" partes={partes(modalidade, ["entrega", "retirada"])} />
+        </section>
+        <section className="adm-card" aria-labelledby="g-pagamento">
+          <h3 className="titulo-graf" id="g-pagamento">
+            Forma de pagamento
+          </h3>
+          <p className="sub-graf">Faturamento</p>
+          <BarraComposicao
+            rotulo="Formas de pagamento"
+            partes={partes(pagamento, ["pix", "credito", "debito", "dinheiro"])}
+          />
+        </section>
+        <section className="adm-card" aria-labelledby="g-origem">
+          <h3 className="titulo-graf" id="g-origem">
+            Origem
+          </h3>
+          <p className="sub-graf">Faturamento</p>
+          <BarraComposicao rotulo="Origem dos pedidos" partes={partes(origem, ["site", "pessoal"])} />
+        </section>
+      </div>
+
+      <h2>Despesas</h2>
+      <section className="adm-card" aria-labelledby="g-despesas">
+        <h3 className="titulo-graf" id="g-despesas">
+          Despesas por categoria · {brl(r.despesas)}
+        </h3>
+        <p className="sub-graf">Compras e gastos lançados no período</p>
+        <BarrasHorizontais
+          rotulo="Despesas por categoria"
+          itens={porCategoria.map(([cat, v]) => ({
+            rotulo: cat,
+            valor: v,
+            texto: brl(v),
+            cor: "laranja" as const,
+          }))}
+        />
+      </section>
+
+      <details className="adm-card adm-receita">
+        <summary>
+          <h3>+ Lançar despesa</h3>
+        </summary>
+        <form action={adicionarDespesaAcao}>
+          <input type="hidden" name="volta" value={volta} />
+          <div className="adm-campos dois">
+            <label className="adm-campo">
+              <span>Data</span>
+              <input type="date" name="data" defaultValue={hoje} required />
+            </label>
+            <label className="adm-campo">
+              <span>Categoria</span>
+              <select name="categoria" required defaultValue="">
+                <option value="" disabled>
+                  Escolha…
+                </option>
+                {CATEGORIAS_DESPESA.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <label className="adm-campo">
+              <span>Descrição</span>
+              <input name="descricao" maxLength={200} placeholder="Ex.: 2 kg de chocolate" />
+            </label>
+            <label className="adm-campo">
+              <span>Valor (R$)</span>
+              <input name="valor" inputMode="decimal" required placeholder="0,00" />
+            </label>
+          </div>
+          <div className="adm-acoes">
+            <button className="adm-btn primario" type="submit">
+              Lançar despesa
+            </button>
+          </div>
+        </form>
+      </details>
+
+      <details className="adm-card adm-receita">
+        <summary>
+          <h3>Lista de despesas ({despesas.length})</h3>
+        </summary>
+        <div className="adm-tabela">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Categoria</th>
+                <th>Descrição</th>
+                <th className="num">Valor</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {despesas.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="adm-mute">
+                    Nenhuma despesa no período.
+                  </td>
+                </tr>
+              )}
+              {despesas.map((d) => (
+                <tr key={d.id}>
+                  <td>{dataBr(d.data)}</td>
+                  <td>{d.categoria}</td>
+                  <td>{d.descricao}</td>
+                  <td className="num">{brl(d.valor)}</td>
+                  <td>
+                    <form action={excluirDespesaAcao}>
+                      <input type="hidden" name="id" value={d.id} />
+                      <input type="hidden" name="volta" value={volta} />
+                      <button
+                        className="adm-btn pequeno perigo"
+                        type="submit"
+                        aria-label={`Excluir despesa ${d.descricao}`}
+                      >
+                        ×
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+
+      <details className="adm-card adm-receita">
+        <summary>
+          <h3>Demonstrativo em tabela</h3>
+        </summary>
         <div className="adm-valores" style={{ borderTop: 0, paddingTop: 0 }}>
           <Linha rotulo="Cookies" valor={r.receitaCookies} />
           <Linha rotulo="Frete cobrado" valor={r.frete} />
@@ -193,143 +444,20 @@ export default async function Financeiro({ searchParams }: Props) {
           <Linha rotulo="Despesas do período" valor={-r.despesas} />
           <Linha rotulo="Resultado" valor={resultado} forte />
         </div>
-        {r.semContribuicao > 0 && (
-          <p className="adm-mute" style={{ marginBottom: 0 }}>
-            {r.semContribuicao} pedido(s) concluído(s) sem contribuição calculada (frete a confirmar ou custo
-            desconhecido): ficaram fora da contribuição.
-          </p>
-        )}
-        <p className="adm-mute" style={{ marginBottom: 0 }}>
-          Ainda pendentes: {r.pendentes} pedido(s), {brl(r.valorPendente)} · Cancelados ou abandonados:{" "}
-          {r.perdidos}
-        </p>
-      </div>
-
-      <h2>Por sabor</h2>
-      <div className="adm-tabela">
-        <table>
-          <thead>
-            <tr>
-              <th>Sabor</th>
-              <th className="num">Cookies</th>
-              <th className="num">Receita</th>
-              <th className="num">Custo</th>
-              <th className="num">Lucro bruto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sabores.length === 0 && (
-              <tr>
-                <td colSpan={5} className="adm-mute">
-                  Nenhuma venda no período.
-                </td>
-              </tr>
-            )}
-            {sabores.map((s) => (
-              <tr key={s.sabor}>
-                <td>{s.sabor}</td>
-                <td className="num">{s.cookies}</td>
-                <td className="num">{brl(s.receita)}</td>
-                <td className="num">{s.custo == null ? "—" : brl(s.custo)}</td>
-                <td className="num">{s.custo == null ? "—" : brl(s.receita - s.custo)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <Quebra titulo="Entrega × retirada" linhas={modalidade} />
-      <Quebra titulo="Forma de pagamento" linhas={pagamento} />
-      <Quebra titulo="Origem" linhas={origem} />
-
-      <h2>Despesas</h2>
-      <form action={adicionarDespesaAcao} className="adm-card">
-        <input type="hidden" name="volta" value={volta} />
-        <div className="adm-campos dois">
-          <label className="adm-campo">
-            <span>Data</span>
-            <input type="date" name="data" defaultValue={hoje} required />
-          </label>
-          <label className="adm-campo">
-            <span>Categoria</span>
-            <select name="categoria" required defaultValue="">
-              <option value="" disabled>
-                Escolha…
-              </option>
-              {CATEGORIAS_DESPESA.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
-          </label>
-          <label className="adm-campo">
-            <span>Descrição</span>
-            <input name="descricao" maxLength={200} placeholder="Ex.: 2 kg de chocolate" />
-          </label>
-          <label className="adm-campo">
-            <span>Valor (R$)</span>
-            <input name="valor" inputMode="decimal" required placeholder="0,00" />
-          </label>
-        </div>
-        <div className="adm-acoes">
-          <button className="adm-btn primario" type="submit">
-            Lançar despesa
-          </button>
-        </div>
-      </form>
-
-      {porCategoria.length > 0 && (
-        <div className="adm-resumo" style={{ marginBottom: 12 }}>
-          {porCategoria.map(([cat, v]) => (
-            <div key={cat}>
-              <span>{cat}</span>
-              <b>{brl(v)}</b>
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="adm-tabela">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Categoria</th>
-              <th>Descrição</th>
-              <th className="num">Valor</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {despesas.length === 0 && (
-              <tr>
-                <td colSpan={5} className="adm-mute">
-                  Nenhuma despesa no período.
-                </td>
-              </tr>
-            )}
-            {despesas.map((d) => (
-              <tr key={d.id}>
-                <td>{dataBr(d.data)}</td>
-                <td>{d.categoria}</td>
-                <td>{d.descricao}</td>
-                <td className="num">{brl(d.valor)}</td>
-                <td>
-                  <form action={excluirDespesaAcao}>
-                    <input type="hidden" name="id" value={d.id} />
-                    <input type="hidden" name="volta" value={volta} />
-                    <button
-                      className="adm-btn pequeno perigo"
-                      type="submit"
-                      aria-label={`Excluir despesa ${d.descricao}`}
-                    >
-                      ×
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+        <Tabela
+          titulo="Por sabor"
+          cabecalho={["Sabor", "Cookies", "Receita", "Custo"]}
+          linhas={sabores.map((s) => [
+            s.sabor,
+            String(s.cookies),
+            brl(s.receita),
+            s.custo == null ? "—" : brl(s.custo),
+          ])}
+        />
+        <TabelaQuebra titulo="Entrega × retirada" linhas={modalidade} />
+        <TabelaQuebra titulo="Forma de pagamento" linhas={pagamento} />
+        <TabelaQuebra titulo="Origem" linhas={origem} />
+      </details>
     </>
   );
 }
@@ -343,31 +471,45 @@ function Linha({ rotulo, valor, forte }: { rotulo: string; valor: number; forte?
   );
 }
 
-function Quebra({ titulo, linhas }: { titulo: string; linhas: LinhaQuebra[] }) {
+function TabelaQuebra({ titulo, linhas }: { titulo: string; linhas: LinhaQuebra[] }) {
+  return (
+    <Tabela
+      titulo={titulo}
+      cabecalho={["", "Pedidos", "Faturamento", "Contribuição"]}
+      linhas={linhas.map((l) => [
+        ROTULOS[l.chave] ?? l.chave,
+        String(l.pedidos),
+        brl(l.valor),
+        l.contribuicao == null ? "—" : brl(l.contribuicao),
+      ])}
+    />
+  );
+}
+
+function Tabela({ titulo, cabecalho, linhas }: { titulo: string; cabecalho: string[]; linhas: string[][] }) {
   if (!linhas.length) return null;
-  const total = linhas.reduce((s, l) => s + l.valor, 0);
   return (
     <>
-      <h2>{titulo}</h2>
+      <h3 style={{ margin: "16px 0 6px", fontSize: 14 }}>{titulo}</h3>
       <div className="adm-tabela">
-        <table>
+        <table style={{ minWidth: 420 }}>
           <thead>
             <tr>
-              <th></th>
-              <th className="num">Pedidos</th>
-              <th className="num">Faturamento</th>
-              <th className="num">Participação</th>
-              <th className="num">Contribuição</th>
+              {cabecalho.map((c, i) => (
+                <th key={i} className={i ? "num" : undefined}>
+                  {c}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
-            {linhas.map((l) => (
-              <tr key={l.chave}>
-                <td>{ROTULOS[l.chave] ?? l.chave}</td>
-                <td className="num">{l.pedidos}</td>
-                <td className="num">{brl(l.valor)}</td>
-                <td className="num">{total ? pct(l.valor / total) : "—"}</td>
-                <td className="num">{l.contribuicao == null ? "—" : brl(l.contribuicao)}</td>
+            {linhas.map((l, i) => (
+              <tr key={i}>
+                {l.map((c, j) => (
+                  <td key={j} className={j ? "num" : undefined}>
+                    {c}
+                  </td>
+                ))}
               </tr>
             ))}
           </tbody>

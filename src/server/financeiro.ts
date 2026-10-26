@@ -123,3 +123,17 @@ export async function adicionarDespesa(d: Omit<Despesa, "id">) {
 export async function excluirDespesa(id: number) {
   await obterBanco().consulta("delete from despesas where id = $1", [id]);
 }
+
+export type PontoSemana = { inicio: string; pedidos: number; faturamento: number; cookies: number };
+
+/** Vendas concluídas por semana (segunda a domingo: na prática, um fim de semana de entregas). */
+export async function vendasPorSemana(de: string, ate: string) {
+  return obterBanco().consulta<PontoSemana>(
+    `select date_trunc('week', p.entrega_data)::date::text as inicio, count(*)::int as pedidos,
+            sum(receita_cookies + coalesce(frete, 0))::float8 as faturamento,
+            sum(quantidade_cookies)::int as cookies
+       from pedidos p where status = 'concluido' and ${periodo}
+      group by 1 order by 1`,
+    [de, ate],
+  );
+}
