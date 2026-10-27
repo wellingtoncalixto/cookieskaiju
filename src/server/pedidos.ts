@@ -259,3 +259,35 @@ export async function reservarNumero(chave: string, anterior?: string): Promise<
     await db.consulta<{ numero: number }>("select numero from reservas_numero where chave = $1", [chave])
   )[0].numero;
 }
+
+export type PedidoNovo = {
+  numero: number;
+  criadoEm: number;
+  modalidade: "entrega" | "retirada" | null;
+  entregaData: string | null;
+  entregaFaixa: string | null;
+  total: number;
+  itens: { nome: string; quantidade: number }[];
+};
+
+/** Maior número de pedido do site já registrado (ponto de partida do alerta do admin). */
+export async function ultimoNumeroSite(): Promise<number> {
+  const [r] = await obterBanco().consulta<{ n: number }>(
+    "select coalesce(max(numero), 0)::int as n from pedidos where tipo_registro = 'site'",
+  );
+  return r.n;
+}
+
+/** Pedidos do site com número maior que `desde` (os que chegaram depois da última conferência). */
+export async function pedidosNovos(desde: number): Promise<PedidoNovo[]> {
+  return obterBanco().consulta<PedidoNovo>(
+    `select p.numero, ${epochMs("p.criado_em")} as "criadoEm", p.modalidade, p.entrega_data::text as "entregaData",
+            p.entrega_faixa as "entregaFaixa", (p.receita_cookies + coalesce(p.frete, 0))::float8 as total,
+            coalesce((select json_agg(json_build_object('nome', i.produto_nome, 'quantidade', i.quantidade) order by i.id)
+                        from itens_pedido i where i.pedido_id = p.id), '[]'::json) as itens
+       from pedidos p
+      where p.tipo_registro = 'site' and p.numero > $1
+      order by p.numero limit 20`,
+    [desde],
+  );
+}

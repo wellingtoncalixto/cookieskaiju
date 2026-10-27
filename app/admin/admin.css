@@ -657,3 +657,65 @@
   height: 10px;
   border-radius: 3px;
 }
+
+/* alerta de pedido novo */
+.adm-sino.ativo {
+  border-color: var(--color-ok);
+  color: var(--color-ok);
+}
+.adm-alerta-fundo {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgb(0 0 0 / 0.72);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+.adm-alerta {
+  /* Fica num portal fora do .adm: cores definidas aqui mesmo. */
+  --adm-card-2: var(--color-void-3);
+  width: min(460px, 100%);
+  background: var(--color-void-2);
+  color: var(--color-bone);
+  font-family: var(--font-body);
+  border: 2px solid var(--color-orange);
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.5);
+  animation: adm-alerta-entra 0.25s ease-out;
+}
+.adm-alerta-titulo {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 26px;
+  text-transform: uppercase;
+  color: var(--color-orange);
+  margin: 0 0 10px;
+}
+.adm-alerta ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+.adm-alerta li {
+  background: var(--color-void);
+  border-radius: 10px;
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+@keyframes adm-alerta-entra {
+  from {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-alerta {
+    animation: none;
+  }
+}
