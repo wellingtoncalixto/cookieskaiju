@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { usarBanco } from "@/server/db";
-import { mudarStatus, pedidosDaOperacao, registrarPedido, type EntradaPedido } from "@/server/pedidos";
+import {
+  mudarStatus,
+  pedidosDaOperacao,
+  registrarPedido,
+  reservarNumero,
+  type EntradaPedido,
+} from "@/server/pedidos";
 import { bancoDeTeste } from "./apoio/banco";
 
 // Dados fictícios (o repositório é público).
@@ -186,5 +192,39 @@ describe("registro de pedidos no banco", () => {
     expect(await mudarStatus("CK-261024-AAAAAAA", "concluido")).toBe(true);
     expect((await pedidosDaOperacao("2026-10-24"))[0].status).toBe("concluido");
     expect(await mudarStatus("CK-000000-XXXXXXX", "concluido")).toBe(false);
+  });
+});
+
+describe("número sequencial do pedido", () => {
+  afterEach(() => usarBanco(null));
+
+  it("reserva na revisão, mantém ao mudar a sacola e grava no pedido; histórico continua 1 a 8", async () => {
+    const b = await preparar();
+    await b.consulta(
+      `insert into pedidos (id, criado_em, tipo_registro) select g::text, now(), 'historico' from generate_series(1, 8) g`,
+    );
+    await b.consulta("update pedidos set numero = id::int");
+    await b.consulta("select setval('pedidos_numero_seq', 9, false)");
+
+    expect(await reservarNumero("CK-261024-AAAAAAA")).toBe(9);
+    expect(await reservarNumero("CK-261024-AAAAAAA")).toBe(9); // mesma chave, mesmo número
+    // Cliente mudou a sacola antes de enviar: o número passa para a chave nova.
+    expect(await reservarNumero("CK-261024-BBBBBBB", "CK-261024-AAAAAAA")).toBe(9);
+    expect(await reservarNumero("CK-261024-CCCCCCC")).toBe(10);
+
+    await registrarPedido({ ...base, id: "CK-261024-BBBBBBB" }, AGORA, sem);
+    // Pedido enviado: a chave antiga não pode mais levar o número embora.
+    expect(await reservarNumero("CK-261024-DDDDDDD", "CK-261024-BBBBBBB")).toBe(11);
+    // Pedido sem reserva (ex.: a reserva falhou) recebe o próximo número.
+    await registrarPedido({ ...base, id: "CK-261024-EEEEEEE" }, AGORA, sem);
+
+    const nums = await b.consulta<{ id: string; numero: number }>(
+      "select id, numero from pedidos where tipo_registro = 'site' order by numero",
+    );
+    expect(nums).toEqual([
+      { id: "CK-261024-BBBBBBB", numero: 9 },
+      { id: "CK-261024-EEEEEEE", numero: 12 },
+    ]);
+    expect((await pedidosDaOperacao("2026-10-24"))[0].numero).toBe(9);
   });
 });

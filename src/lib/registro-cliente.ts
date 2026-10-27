@@ -64,6 +64,21 @@ function gravarFila(fila: ItemFila[]) {
 
 // ---------- envio ----------
 
+/** Reserva o número do pedido (#57) para a chave interna. `anterior`: chave antes de mudar a sacola. */
+export async function reservarNumero(chave: string, anterior?: string): Promise<number | null> {
+  try {
+    const r = await fetch("/api/pedidos/numero", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chave, anterior }),
+    });
+    const j = (await r.json().catch(() => ({}))) as { numero?: unknown };
+    return r.ok && typeof j.numero === "number" ? j.numero : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function enviarRegistro(entrada: EntradaCliente): Promise<ResultadoEnvio> {
   try {
     const r = await fetch("/api/pedidos", {

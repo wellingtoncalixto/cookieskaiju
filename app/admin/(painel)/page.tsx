@@ -151,6 +151,7 @@ function textoFaixa(p: PedidoOperacao) {
 }
 
 function Pedido({ p, hoje }: { p: PedidoOperacao; hoje: string }) {
+  const rotulo = p.numero != null ? `#${p.numero}` : p.id;
   const feitoEm = paredeSP(p.criadoEm);
   const feito = isoData(feitoEm) === hoje ? horaDe(p.criadoEm) : `${ddmm(feitoEm)} às ${horaDe(p.criadoEm)}`;
   const entrega =
@@ -164,7 +165,7 @@ function Pedido({ p, hoje }: { p: PedidoOperacao; hoje: string }) {
   return (
     <article className={`adm-card adm-pedido ${p.status}`}>
       <div className="cab">
-        <span className="adm-codigo">{p.id}</span>
+        <span className="adm-codigo">{rotulo}</span>
         <span>
           {p.semEstoque && (
             <span
@@ -209,7 +210,7 @@ function Pedido({ p, hoje }: { p: PedidoOperacao; hoje: string }) {
           <span className="tnum">{brl(p.total)}</span>
         </div>
       </div>
-      <form action={definirStatusPedido} className="adm-status" aria-label={`Status do pedido ${p.id}`}>
+      <form action={definirStatusPedido} className="adm-status" aria-label={`Status do pedido ${rotulo}`}>
         <input type="hidden" name="pedido" value={p.id} />
         {(Object.keys(ROTULO_STATUS) as StatusPedido[])
           .filter((s) => s !== p.status)

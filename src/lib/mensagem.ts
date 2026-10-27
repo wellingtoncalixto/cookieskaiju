@@ -14,7 +14,7 @@ export type Endereco = {
 };
 
 export type PedidoMensagem = {
-  /** ID do pedido (CK-AAMMDD-XXXXXXX), quando o registro está ligado. */
+  /** Número do pedido (#57), quando o registro está ligado. */
   id?: string;
   itens: { nome: string; quantidade: number; preco: number }[];
   /** Ausente = entrega. */

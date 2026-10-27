@@ -63,7 +63,10 @@ export function TelaEnviado() {
         <p>
           O WhatsApp abriu em outra aba com a mensagem do pedido pronta. Toque em enviar por lá para concluir.
         </p>
-        <SituacaoRegistro id={c.pedido.idPedido} registro={c.pedido.registro} />
+        <SituacaoRegistro
+          id={c.pedido.numeroPedido != null ? `#${c.pedido.numeroPedido}` : null}
+          registro={c.pedido.registro}
+        />
         <p className="fine">
           Se o WhatsApp não abriu, copie a mensagem e envie para{" "}
           <span className="copy-num">{loja.contato.whatsappExibicao}</span>.

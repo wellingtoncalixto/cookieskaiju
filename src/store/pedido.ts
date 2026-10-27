@@ -28,6 +28,8 @@ export type EstadoPedido = {
   idPedido: string | null;
   /** Conteúdo do pedido quando o ID foi gerado (ver assinaturaConteudo). */
   idConteudo: string | null;
+  /** Número do pedido mostrado ao cliente (#57), reservado na revisão. */
+  numeroPedido: number | null;
   /** Registro no painel da loja: só "registrado" depois da confirmação do servidor. */
   registro: "inativo" | "enviando" | "registrado" | "falhou";
 };
@@ -62,6 +64,7 @@ const inicial = (): EstadoPedido => ({
   mensagemEnviada: null,
   idPedido: null,
   idConteudo: null,
+  numeroPedido: null,
   registro: "inativo",
 });
 

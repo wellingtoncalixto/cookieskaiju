@@ -15,7 +15,12 @@ import { linhaPagamento, linkWhatsApp, montarMensagemWhatsApp } from "@/lib/mens
 import { CHAVE_AGORA, horaDe, textoHorario } from "@/lib/agenda";
 import { freteEmAndamento } from "@/lib/agendar-frete";
 import { gerarIdPedido } from "@/lib/id-pedido";
-import { assinaturaConteudo, registrarComTentativas, type EntradaCliente } from "@/lib/registro-cliente";
+import {
+  assinaturaConteudo,
+  registrarComTentativas,
+  reservarNumero,
+  type EntradaCliente,
+} from "@/lib/registro-cliente";
 import { DIAS_CURTOS, dataDeIso, ddmm } from "@/lib/tempo";
 import { usePedido } from "@/store/pedido";
 import { linhasSacola, useSacola } from "@/store/sacola";
@@ -40,12 +45,29 @@ export function TelaRevisao() {
   };
   const conteudo = assinaturaConteudo(resumoRegistro);
 
-  // ID estável enquanto o pedido não mudar (mesmo ID = nunca duplica no banco).
+  // Chave interna estável enquanto o pedido não mudar (mesma chave = nunca duplica no banco) e número do pedido
+  // (#57) reservado no servidor. Se a sacola mudar antes do envio, o mesmo número passa para a chave nova.
   useEffect(() => {
     if (!REGISTRO_PEDIDOS_ATIVO || !liberada) return;
     const atual = usePedido.getState();
-    if (atual.idPedido && atual.idConteudo === conteudo) return;
-    atual.definir({ idPedido: gerarIdPedido(), idConteudo: conteudo, registro: "inativo" });
+    let chave = atual.idPedido;
+    let anterior: string | undefined;
+    if (!chave || atual.idConteudo !== conteudo) {
+      anterior = chave && atual.registro === "inativo" ? chave : undefined;
+      chave = gerarIdPedido();
+      atual.definir({
+        idPedido: chave,
+        idConteudo: conteudo,
+        registro: "inativo",
+        numeroPedido: anterior ? atual.numeroPedido : null,
+      });
+    }
+    if (usePedido.getState().numeroPedido != null && !anterior) return;
+    const reservada = chave;
+    void reservarNumero(reservada, anterior).then((numero) => {
+      if (numero != null && usePedido.getState().idPedido === reservada)
+        usePedido.getState().definir({ numeroPedido: numero });
+    });
   }, [liberada, conteudo]);
 
   const cabecalho = (
@@ -80,8 +102,9 @@ export function TelaRevisao() {
   const erros = [...errosEstoque, ...c.erros.entrega.mensagens, ...c.erros.pagamento.mensagens];
 
   const idPedido = REGISTRO_PEDIDOS_ATIVO ? (pedido.idPedido ?? undefined) : undefined;
+  const numeroPedido = idPedido && pedido.numeroPedido != null ? `#${pedido.numeroPedido}` : undefined;
   const mensagem = montarMensagemWhatsApp({
-    id: idPedido,
+    id: numeroPedido,
     itens: linhas.map((l) => ({ nome: l.produto.nome, quantidade: l.quantidade, preco: l.produto.preco })),
     modalidade: pedido.modalidade,
     teste: situacao.agenda.teste,
@@ -103,7 +126,7 @@ export function TelaRevisao() {
             <div>
               <span className="label">Comanda</span>
               <b>Cookies Kaiju</b>
-              {idPedido && <span className="label id-pedido">Pedido {idPedido}</span>}
+              {numeroPedido && <span className="label id-pedido">Pedido {numeroPedido}</span>}
             </div>
             <div className="when">
               {paraAgora ? (

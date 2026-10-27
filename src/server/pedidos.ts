@@ -112,9 +112,10 @@ export async function registrarPedido(
     `with novo as (
        insert into pedidos (id, criado_em, entrega_data, entrega_faixa, modalidade, cidade, distancia_km, pagamento,
                             quantidade_cookies, receita_cookies, frete, custo_cookies, embalagem, taxa_pagamento,
-                            combustivel, contribuicao, origem, tipo_registro)
+                            combustivel, contribuicao, origem, tipo_registro, numero)
        values ($1, to_timestamp($2::float8 / 1000), $3::date, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-               $16, 'site', 'site')
+               $16, 'site', 'site',
+               coalesce((select numero from reservas_numero where chave = $1), nextval('pedidos_numero_seq')))
        on conflict (id) do nothing
        returning id
      )
@@ -177,6 +178,8 @@ export type StatusPedido = (typeof STATUS)[number];
 
 export type PedidoOperacao = {
   id: string;
+  /** Número mostrado ao cliente (#numero). */
+  numero: number | null;
   criadoEm: number;
   entregaData: string | null;
   entregaFaixa: string | null;
@@ -194,7 +197,7 @@ export type PedidoOperacao = {
 /** Pedidos com entrega de hoje em diante (São Paulo), na ordem de entrega. */
 export async function pedidosDaOperacao(hoje: string): Promise<PedidoOperacao[]> {
   return obterBanco().consulta<PedidoOperacao>(
-    `select p.id, ${epochMs("p.criado_em")} as "criadoEm", p.entrega_data::text as "entregaData",
+    `select p.id, p.numero, ${epochMs("p.criado_em")} as "criadoEm", p.entrega_data::text as "entregaData",
             p.entrega_faixa as "entregaFaixa", p.modalidade, p.cidade, p.pagamento, p.status,
             p.sem_estoque as "semEstoque", p.receita_cookies::float8 as receita, p.frete::float8 as frete,
             (p.receita_cookies + coalesce(p.frete, 0))::float8 as total,
@@ -224,4 +227,35 @@ export async function mudarStatus(id: string, status: StatusPedido): Promise<boo
   if (!eraInativo && ficaInativo) await devolverEstoquePedido(id);
   if (eraInativo && !ficaInativo) await rebaixarEstoquePedido(id);
   return true;
+}
+
+/**
+ * Reserva o número do pedido para a chave interna (CK-…). Mesma chave → mesmo número.
+ * `anterior`: chave de antes de o cliente mudar a sacola; se aquele pedido não foi enviado, o número passa para a
+ * chave nova (sem gastar outro número).
+ */
+export async function reservarNumero(chave: string, anterior?: string): Promise<number> {
+  const db = obterBanco();
+  const ja = await db.consulta<{ numero: number }>("select numero from reservas_numero where chave = $1", [
+    chave,
+  ]);
+  if (ja.length) return ja[0].numero;
+  if (anterior && anterior !== chave) {
+    const movido = await db.consulta<{ numero: number }>(
+      `update reservas_numero set chave = $1
+        where chave = $2 and not exists (select 1 from pedidos where id = $2)
+       returning numero`,
+      [chave, anterior],
+    );
+    if (movido.length) return movido[0].numero;
+  }
+  const novo = await db.consulta<{ numero: number }>(
+    `insert into reservas_numero (chave, numero) values ($1, nextval('pedidos_numero_seq'))
+     on conflict (chave) do nothing returning numero`,
+    [chave],
+  );
+  if (novo.length) return novo[0].numero;
+  return (
+    await db.consulta<{ numero: number }>("select numero from reservas_numero where chave = $1", [chave])
+  )[0].numero;
 }

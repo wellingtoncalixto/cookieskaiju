@@ -99,12 +99,9 @@ describe("montarMensagemWhatsApp", () => {
     expect(msg).toMatchSnapshot();
   });
 
-  it("com ID do pedido: logo abaixo do título", () => {
-    const msg = montarMensagemWhatsApp({ ...base, id: "CK-261024-7K3QF9A" });
-    expect(msg.split("\n").slice(0, 2)).toEqual([
-      "*NOVO PEDIDO · COOKIES KAIJU*",
-      "Pedido: CK-261024-7K3QF9A",
-    ]);
+  it("com número do pedido: logo abaixo do título", () => {
+    const msg = montarMensagemWhatsApp({ ...base, id: "#57" });
+    expect(msg.split("\n").slice(0, 2)).toEqual(["*NOVO PEDIDO · COOKIES KAIJU*", "Pedido: #57"]);
   });
 
   it("modo teste", () => {
