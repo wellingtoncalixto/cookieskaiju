@@ -5,7 +5,7 @@ import { CHAVE_AGORA } from "@/lib/agenda";
 import type { Cotacao } from "@/lib/assinatura";
 import { normalizar, soDigitos } from "@/lib/formato";
 import { avaliarPromo } from "@/lib/frete";
-import { idPedidoValido } from "@/lib/id-pedido";
+import { gerarIdPedido, idPedidoValido } from "@/lib/id-pedido";
 import { isoData, paredeSP } from "@/lib/tempo";
 import { calcularValoresPedido } from "@/lib/valores-pedido";
 import { configCustos, mapaConfiguracao } from "@/server/configuracao";
@@ -188,6 +188,7 @@ export type PedidoOperacao = {
   pagamento: string | null;
   status: StatusPedido;
   semEstoque: boolean;
+  manual: boolean;
   receita: number;
   frete: number | null;
   total: number;
@@ -199,7 +200,7 @@ export async function pedidosDaOperacao(hoje: string): Promise<PedidoOperacao[]>
   return obterBanco().consulta<PedidoOperacao>(
     `select p.id, p.numero, ${epochMs("p.criado_em")} as "criadoEm", p.entrega_data::text as "entregaData",
             p.entrega_faixa as "entregaFaixa", p.modalidade, p.cidade, p.pagamento, p.status,
-            p.sem_estoque as "semEstoque", p.receita_cookies::float8 as receita, p.frete::float8 as frete,
+            p.sem_estoque as "semEstoque", (p.tipo_registro = 'manual') as manual, p.receita_cookies::float8 as receita, p.frete::float8 as frete,
             (p.receita_cookies + coalesce(p.frete, 0))::float8 as total,
             coalesce((select json_agg(json_build_object('nome', i.produto_nome, 'quantidade', i.quantidade,
                                                          'preco', i.preco_unitario::float8) order by i.id)
@@ -290,4 +291,113 @@ export async function pedidosNovos(desde: number): Promise<PedidoNovo[]> {
       order by p.numero limit 20`,
     [desde],
   );
+}
+
+export type PedidoManual = {
+  itens: { produtoId: number; quantidade: number }[];
+  modalidade: "entrega" | "retirada";
+  entregaData: string;
+  /** "agora" (para hoje), id da faixa (13h…) ou null (sem horário). */
+  entregaFaixa: string | null;
+  pagamento: "pix" | "credito" | "debito" | "dinheiro";
+  cidade: string;
+  frete: number | null;
+  distanciaKm: number | null;
+  origem: "pessoal" | "site";
+  relacaoCliente: "novo" | "conhecido" | null;
+  comoConheceu: string;
+  status: "pendente" | "concluido";
+};
+
+/**
+ * Pedido lançado à mão no admin (telefone, balcão, conversa direta). Usa os preços e custos atuais, recebe o próximo
+ * número, reserva o estoque e entra no financeiro como os pedidos do site (tipo_registro = 'manual').
+ */
+export async function registrarPedidoManual(
+  d: PedidoManual,
+  agora: number,
+): Promise<{ ok: true; numero: number; semEstoque: boolean } | { ok: false; erro: string }> {
+  const db = obterBanco();
+  const ids = d.itens.map((i) => i.produtoId);
+  if (!ids.length) return { ok: false, erro: "Informe a quantidade de pelo menos um sabor." };
+  if (new Set(ids).size !== ids.length) return { ok: false, erro: "Sabor repetido." };
+  const produtos = await db.consulta<ProdutoBanco & { estoque: number | null }>(
+    `select id, slug, nome, preco::float8 as preco, custo_unitario::float8 as custo, disponivel, estoque
+       from produtos where id = any($1)`,
+    [ids],
+  );
+  const itens = [];
+  for (const i of d.itens) {
+    const p = produtos.find((x) => x.id === i.produtoId);
+    if (!p) return { ok: false, erro: "Sabor não encontrado." };
+    itens.push({ produto: p, quantidade: i.quantidade });
+  }
+  const frete = d.modalidade === "retirada" ? 0 : d.frete;
+  const distanciaKm = d.modalidade === "retirada" ? 0 : d.distanciaKm;
+  const v = calcularValoresPedido(
+    {
+      itens: itens.map((i) => ({ quantidade: i.quantidade, preco: i.produto.preco, custo: i.produto.custo })),
+      modalidade: d.modalidade,
+      pagamento: d.pagamento,
+      frete,
+      distanciaKm,
+    },
+    configCustos(await mapaConfiguracao()),
+  );
+  const id = gerarIdPedido(agora);
+  const [r] = await db.consulta<{ numero: number }>(
+    `with novo as (
+       insert into pedidos (id, numero, criado_em, entrega_data, entrega_faixa, modalidade, cidade, distancia_km,
+                            pagamento, status, quantidade_cookies, receita_cookies, frete, custo_cookies, embalagem,
+                            taxa_pagamento, combustivel, contribuicao, origem, relacao_cliente, como_conheceu,
+                            tipo_registro)
+       values ($1, nextval('pedidos_numero_seq'), to_timestamp($2::float8 / 1000), $3::date, $4, $5, $6, $7, $8, $9,
+               $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, 'manual')
+       returning id, numero
+     ),
+     itens as (
+       insert into itens_pedido (pedido_id, produto_id, produto_nome, quantidade, preco_unitario, custo_unitario)
+       select novo.id, i.produto_id, i.produto_nome, i.quantidade, i.preco_unitario, i.custo_unitario
+         from novo, jsonb_to_recordset($21::jsonb)
+           as i(produto_id int, produto_nome text, quantidade int, preco_unitario numeric, custo_unitario numeric)
+     )
+     select numero from novo`,
+    [
+      id,
+      agora,
+      d.entregaData,
+      d.entregaFaixa,
+      d.modalidade,
+      d.modalidade === "retirada" ? "" : d.cidade,
+      distanciaKm,
+      d.pagamento,
+      d.status,
+      v.quantidade,
+      v.receita,
+      frete,
+      v.custo,
+      v.embalagem,
+      v.taxa,
+      v.combustivel,
+      v.contribuicao,
+      d.origem,
+      d.relacaoCliente,
+      d.comoConheceu,
+      JSON.stringify(
+        itens.map((i) => ({
+          produto_id: i.produto.id,
+          produto_nome: i.produto.nome,
+          quantidade: i.quantidade,
+          preco_unitario: i.produto.preco,
+          custo_unitario: i.produto.custo,
+        })),
+      ),
+    ],
+  );
+  const semEstoque = await baixarEstoquePedido(
+    id,
+    itens.map((i) => ({ produtoId: i.produto.id, quantidade: i.quantidade })),
+  );
+  if (semEstoque) await db.consulta("update pedidos set sem_estoque = true where id = $1", [id]);
+  return { ok: true, numero: r.numero, semEstoque };
 }

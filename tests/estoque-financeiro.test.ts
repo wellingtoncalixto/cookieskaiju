@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { usarBanco } from "@/server/db";
 import { definirEstoque, estoqueAtual } from "@/server/estoque";
 import { adicionarDespesa, quebra, resumoFinanceiro, vendasPorSabor } from "@/server/financeiro";
-import { mudarStatus, registrarPedido, type EntradaPedido } from "@/server/pedidos";
+import { mudarStatus, registrarPedido, registrarPedidoManual, type EntradaPedido } from "@/server/pedidos";
 import { bancoDeTeste } from "./apoio/banco";
 
 // Dados fictícios (o repositório é público).
@@ -133,5 +133,52 @@ describe("financeiro", () => {
       ["pix", 1],
       ["credito", 1],
     ]);
+  });
+});
+
+describe("pedido manual (admin)", () => {
+  afterEach(() => usarBanco(null));
+
+  it("recebe o próximo número, reserva estoque, calcula valores e entra no financeiro quando concluído", async () => {
+    const b = await preparar();
+    await b.consulta("select setval('pedidos_numero_seq', 9, false)");
+    const r = await registrarPedidoManual(
+      {
+        itens: [
+          { produtoId: 1, quantidade: 2 },
+          { produtoId: 2, quantidade: 1 },
+        ],
+        modalidade: "entrega",
+        entregaData: "2026-10-24",
+        entregaFaixa: "14h",
+        pagamento: "credito",
+        cidade: "Mogi Mirim",
+        frete: 5,
+        distanciaKm: 4,
+        origem: "pessoal",
+        relacaoCliente: "novo",
+        comoConheceu: "Indicação",
+        status: "concluido",
+      },
+      AGORA,
+    );
+    expect(r).toEqual({ ok: true, numero: 9, semEstoque: false });
+    expect(await estoque(b, "alfa")).toBe(1); // 3 - 2
+    const [p] = await b.consulta<Record<string, unknown>>(
+      `select numero, tipo_registro, origem, status, receita_cookies::float8 as receita, frete::float8 as frete,
+              combustivel::float8 as comb, contribuicao is not null as tem_contrib from pedidos`,
+    );
+    expect(p).toMatchObject({
+      numero: 9,
+      tipo_registro: "manual",
+      origem: "pessoal",
+      status: "concluido",
+      receita: 56,
+      frete: 5,
+      tem_contrib: true,
+    });
+    expect(p.comb).toBeCloseTo((2 * 4 * 6.6) / 20);
+    expect((await resumoFinanceiro("2026-10-01", "2026-10-31")).faturamento).toBe(61);
+    expect((await registrarPedidoManual({ ...({} as never), itens: [] } as never, AGORA)).ok).toBe(false);
   });
 });

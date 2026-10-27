@@ -21,7 +21,7 @@ import {
 } from "@/server/cadastros";
 import { definirEstoque } from "@/server/estoque";
 import { CATEGORIAS_DESPESA, adicionarDespesa, excluirDespesa } from "@/server/financeiro";
-import { STATUS, mudarStatus } from "@/server/pedidos";
+import { STATUS, mudarStatus, registrarPedidoManual } from "@/server/pedidos";
 import { obterBanco } from "@/server/db";
 import {
   TIPOS_ACEITOS,
@@ -442,4 +442,54 @@ export async function descartarNotaAcao(form: FormData) {
   const nid = id(form);
   if (nid) await descartarNota(nid);
   voltar("/admin/compras", { ok: "Nota descartada." });
+}
+
+// ---------------------------------------------------------------- pedido manual
+
+export async function criarPedidoManualAcao(form: FormData) {
+  await exigirAdmin();
+  const N = "/admin/pedidos/novo";
+  const itens: { produtoId: number; quantidade: number }[] = [];
+  for (const pid of form.getAll("produto").map(Number)) {
+    const q = numero(form, `qtd-${pid}`);
+    if (q == null || q === 0) continue;
+    if (!Number.isInteger(q) || q < 0 || q > 200) voltar(N, { erro: "Quantidade inválida." });
+    itens.push({ produtoId: pid, quantidade: q });
+  }
+  if (!itens.length) voltar(N, { erro: "Informe a quantidade de pelo menos um sabor." });
+  const modalidade = texto(form, "modalidade") === "retirada" ? "retirada" : "entrega";
+  const data = texto(form, "data");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(data)) voltar(N, { erro: "Informe a data da entrega." });
+  const faixa = texto(form, "faixa");
+  const pagamento = texto(form, "pagamento");
+  if (!["pix", "credito", "debito", "dinheiro"].includes(pagamento))
+    voltar(N, { erro: "Escolha a forma de pagamento." });
+  const frete = numero(form, "frete");
+  const km = numero(form, "km");
+  if ([frete, km].some((v) => v != null && (Number.isNaN(v) || v < 0 || v > 1000)))
+    voltar(N, { erro: "Frete ou distância inválidos." });
+  const cidade = texto(form, "cidade") === "outra" ? texto(form, "cidadeOutra") : texto(form, "cidade");
+  const relacao = texto(form, "relacao");
+  const r = await registrarPedidoManual(
+    {
+      itens,
+      modalidade,
+      entregaData: data,
+      entregaFaixa: faixa === "" ? null : faixa.slice(0, 20),
+      pagamento: pagamento as "pix",
+      cidade: cidade.slice(0, 80),
+      frete,
+      distanciaKm: km,
+      origem: texto(form, "origem") === "site" ? "site" : "pessoal",
+      relacaoCliente: relacao === "novo" || relacao === "conhecido" ? relacao : null,
+      comoConheceu: texto(form, "comoConheceu").slice(0, 80),
+      status: texto(form, "status") === "concluido" ? "concluido" : "pendente",
+    },
+    Date.now(),
+  );
+  if (!r.ok) voltar(N, { erro: r.erro });
+  revalidateTag(TAG_CATALOGO, { expire: 0 });
+  voltar("/admin", {
+    ok: `Pedido #${r.numero} lançado.${r.semEstoque ? " Atenção: faltou estoque para algum sabor." : ""}`,
+  });
 }

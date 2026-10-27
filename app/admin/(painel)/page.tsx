@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { definirEstoqueAcao, definirModoLoja, definirStatusPedido } from "../acoes";
 import { AtualizarSozinho } from "@/components/admin/AtualizarSozinho";
 import { Aviso } from "@/components/admin/Aviso";
@@ -121,7 +122,15 @@ export default async function Operacao({ searchParams }: Props) {
         </div>
       </section>
 
-      <h2>Pedidos de hoje e agendados</h2>
+      <div
+        className="adm-acoes"
+        style={{ justifyContent: "space-between", alignItems: "center", marginTop: 28 }}
+      >
+        <h2 style={{ margin: 0 }}>Pedidos de hoje e agendados</h2>
+        <Link className="adm-btn primario pequeno" href="/admin/pedidos/novo">
+          + Novo pedido
+        </Link>
+      </div>
       {pedidos.length === 0 && <p className="adm-mute">Nenhum pedido de hoje em diante.</p>}
       {[...porDia].map(([data, lista]) => (
         <section key={data} aria-label={tituloDia(data, hoje)}>
@@ -167,6 +176,11 @@ function Pedido({ p, hoje }: { p: PedidoOperacao; hoje: string }) {
       <div className="cab">
         <span className="adm-codigo">{rotulo}</span>
         <span>
+          {p.manual && (
+            <span className="adm-selo" style={{ marginRight: 6 }} title="Lançado no admin">
+              Manual
+            </span>
+          )}
           {p.semEstoque && (
             <span
               className="adm-selo cancelado"
