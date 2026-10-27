@@ -179,6 +179,24 @@ describe("pedido manual (admin)", () => {
     });
     expect(p.comb).toBeCloseTo((2 * 4 * 6.6) / 20);
     expect((await resumoFinanceiro("2026-10-01", "2026-10-31")).faturamento).toBe(61);
-    expect((await registrarPedidoManual({ ...({} as never), itens: [] } as never, AGORA)).ok).toBe(false);
+    // Sem nenhum sabor: recusa.
+    const vazio = await registrarPedidoManual(
+      {
+        itens: [],
+        modalidade: "retirada",
+        entregaData: "2026-10-24",
+        entregaFaixa: null,
+        pagamento: "pix",
+        cidade: "",
+        frete: null,
+        distanciaKm: null,
+        origem: "pessoal",
+        relacaoCliente: null,
+        comoConheceu: "",
+        status: "pendente",
+      },
+      AGORA,
+    );
+    expect(vazio.ok).toBe(false);
   });
 });
