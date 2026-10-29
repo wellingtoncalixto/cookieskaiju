@@ -52,8 +52,10 @@ export default async function Operacao({ searchParams }: Props) {
   const { hoje, modo, pedidos, estoque, agenda, textos } = await carregar();
   const aberto = agenda.modo === "aberta";
 
+  // Cancelados saem da tela (continuam no banco e no financeiro).
+  const visiveis = pedidos.filter((p) => p.status !== "cancelado");
   const porDia = new Map<string, PedidoOperacao[]>();
-  for (const p of pedidos) porDia.set(p.entregaData!, [...(porDia.get(p.entregaData!) ?? []), p]);
+  for (const p of visiveis) porDia.set(p.entregaData!, [...(porDia.get(p.entregaData!) ?? []), p]);
 
   return (
     <>
@@ -131,7 +133,7 @@ export default async function Operacao({ searchParams }: Props) {
           + Novo pedido
         </Link>
       </div>
-      {pedidos.length === 0 && <p className="adm-mute">Nenhum pedido de hoje em diante.</p>}
+      {visiveis.length === 0 && <p className="adm-mute">Nenhum pedido de hoje em diante.</p>}
       {[...porDia].map(([data, lista]) => (
         <section key={data} aria-label={tituloDia(data, hoje)}>
           <h3 className="adm-dia">
@@ -150,6 +152,7 @@ export default async function Operacao({ searchParams }: Props) {
 function tituloDia(data: string, hoje: string) {
   const d = dataDeIso(data);
   const nome = DIAS[d.getUTCDay()];
+  if (data < hoje) return `${ddmm(d)} · pendente de dias anteriores`;
   return data === hoje ? `Hoje, ${ddmm(d)}` : `${nome[0].toUpperCase()}${nome.slice(1)}, ${ddmm(d)}`;
 }
 

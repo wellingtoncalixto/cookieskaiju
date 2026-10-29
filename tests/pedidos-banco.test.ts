@@ -173,14 +173,17 @@ describe("registro de pedidos no banco", () => {
     ]);
   });
 
-  it("operação: pedidos de hoje em diante com itens e total; status muda", async () => {
+  it("operação: pedidos de hoje em diante e pendentes antigos, com itens e total; status muda", async () => {
     await registrarPedido({ ...base, id: "CK-261024-DDDDDDD", horario: "2026-10-25|13h" }, AGORA, sem);
     await registrarPedido(base, AGORA, sem);
     await b.consulta(
-      `insert into pedidos (id, criado_em, entrega_data, tipo_registro) values ('1', now(), '2026-10-01', 'historico')`,
+      `insert into pedidos (id, criado_em, entrega_data, status, tipo_registro) values
+         ('1', now(), '2026-10-01', 'concluido', 'historico'),
+         ('2', now(), '2026-10-20', 'pendente', 'manual')`,
     );
     const lista = await pedidosDaOperacao("2026-10-24");
-    expect(lista.map((p) => p.id)).toEqual(["CK-261024-AAAAAAA", "CK-261024-DDDDDDD"]);
+    expect(lista.map((p) => p.id)).toEqual(["2", "CK-261024-AAAAAAA", "CK-261024-DDDDDDD"]);
+    lista.shift();
     expect(lista[0]).toMatchObject({
       entregaFaixa: "agora",
       receita: 36,
@@ -190,7 +193,7 @@ describe("registro de pedidos no banco", () => {
     });
     expect(lista[0].itens).toEqual([{ nome: "Alfa", quantidade: 2, preco: 18 }]);
     expect(await mudarStatus("CK-261024-AAAAAAA", "concluido")).toBe(true);
-    expect((await pedidosDaOperacao("2026-10-24"))[0].status).toBe("concluido");
+    expect((await pedidosDaOperacao("2026-10-24"))[1].status).toBe("concluido");
     expect(await mudarStatus("CK-000000-XXXXXXX", "concluido")).toBe(false);
   });
 });
