@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { assinarCotacao } from "@/lib/assinatura";
 import { soDigitos } from "@/lib/formato";
 import { calcularFreteServidor } from "@/lib/frete-servidor";
 
@@ -33,7 +34,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    return Response.json(await calcularFreteServidor(dados), { headers: semCache });
+    const r = await calcularFreteServidor(dados);
+    // Cotação assinada: /api/pedidos só aceita o frete com esta assinatura (o navegador não consegue forjar).
+    const segredo = process.env.FRETE_COTACAO_SEGREDO;
+    const cep = soDigitos(dados.cep);
+    const cotacao =
+      segredo && cep.length === 8
+        ? assinarCotacao({ cep, km1Decimal: r.km1Decimal, kmCobrado: r.kmCobrado, valor: r.valor }, segredo)
+        : undefined;
+    return Response.json({ ...r, cotacao }, { headers: semCache });
   } catch (err) {
     // A mensagem diz só o passo e o serviço que falharam (ex.: "HTTP 403 (nominatim.openstreetmap.org)"),
     // nunca o endereço, então pode ir para o log e para a resposta.

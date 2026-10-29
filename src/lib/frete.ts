@@ -81,7 +81,15 @@ export function avaliarPromo(
 export type EstadoFrete =
   | { status: "vazio" }
   | { status: "calculando" }
-  | { status: "ok"; km1Decimal: number; kmCobrado: number; valor: number; aproximado: boolean }
+  | {
+      status: "ok";
+      km1Decimal: number;
+      kmCobrado: number;
+      valor: number;
+      aproximado: boolean;
+      /** Cotação assinada pelo servidor (vai para o registro do pedido). */
+      cotacao?: string;
+    }
   | { status: "falhou" };
 
 /** Taxa já resolvida, considerando a promoção. Usada na tela e na mensagem. */

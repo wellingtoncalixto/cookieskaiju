@@ -6,6 +6,7 @@ import { brl } from "@/lib/formato";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { promoVigente, valorFrete } from "@/lib/frete";
 import { agoraSaoPaulo, isoData } from "@/lib/tempo";
+import { obterCatalogo } from "@/server/catalogo";
 
 export const metadata: Metadata = {
   title: "Entrega de cookies em Mogi Mirim e Mogi Guaçu",
@@ -14,7 +15,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/entrega" },
 };
 
-export default function Entrega() {
+export default async function Entrega() {
+  const produtos = await obterCatalogo();
   const [ano, mes, dia] = loja.promo.ate.split("-");
   const kms = Array.from({ length: 12 }, (_, i) => i + 1);
   return (
@@ -96,11 +98,11 @@ export default function Entrega() {
         <section className="prose" aria-labelledby="t-cookies">
           <h2 id="t-cookies">Cookies recheados com entrega no fim de semana</h2>
           <p>
-            São quatro sabores de cookies recheados de {loja.pesoGramas} g:{" "}
-            {loja.produtos.map((p, i) => (
+            Nossos cookies recheados de {loja.pesoGramas} g:{" "}
+            {produtos.map((p, i) => (
               <span key={p.slug}>
                 <Link href={`/cookies/${p.slug}`}>{p.nome}</Link>
-                {i < loja.produtos.length - 2 ? ", " : i === loja.produtos.length - 2 ? " e " : "."}
+                {i < produtos.length - 2 ? ", " : i === produtos.length - 2 ? " e " : "."}
               </span>
             ))}{" "}
             Monte a sacola no <Link href="/#cardapio">cardápio</Link> e envie o pedido pelo WhatsApp.

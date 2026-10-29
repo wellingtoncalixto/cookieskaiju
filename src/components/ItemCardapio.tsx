@@ -1,7 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { BotaoAdicionar } from "@/components/Cardapio";
-import { imagemProduto, type Produto } from "@/config/loja";
+import type { Produto } from "@/config/loja";
+import { imagemProduto } from "@/lib/catalogo";
 import { brl } from "@/lib/formato";
 
 export function ItemCardapio({ produto: p }: { produto: Produto }) {
@@ -18,7 +19,7 @@ export function ItemCardapio({ produto: p }: { produto: Produto }) {
           </span>
         </span>
         <span className="ph">
-          <Image src={imagemProduto(p.slug)} alt={p.alt} width={116} height={116} sizes="116px" />
+          <Image src={imagemProduto(p)} alt={p.alt} width={116} height={116} sizes="116px" />
           {!p.disponivel && (
             <span className="sold" aria-hidden="true">
               Esgotado
@@ -26,7 +27,9 @@ export function ItemCardapio({ produto: p }: { produto: Produto }) {
           )}
         </span>
       </Link>
-      <BotaoAdicionar produto={{ slug: p.slug, nome: p.nome, disponivel: p.disponivel }} />
+      <BotaoAdicionar
+        produto={{ slug: p.slug, nome: p.nome, disponivel: p.disponivel, estoque: p.estoque }}
+      />
     </li>
   );
 }

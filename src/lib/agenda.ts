@@ -21,6 +21,9 @@ import {
 
 export type ModoAgenda = "aberta" | "fechada";
 
+/** Chave do admin (tabela estado_loja): segue o calendário, ou força aberto/fechado. */
+export type ModoLoja = "automatico" | "aberto" | "fechado";
+
 export type DiaEntrega = {
   /** AAAA-MM-DD (data em São Paulo). */
   data: string;
@@ -34,6 +37,8 @@ export type Agenda = {
   /** A loja está funcionando neste momento? */
   modo: ModoAgenda;
   teste: boolean;
+  /** Aberto ou fechado à mão pelo admin (null = segue o calendário). */
+  manual: "aberto" | "fechado" | null;
   /** Pedido para hoje disponível (sem escolher horário). */
   agora: boolean;
   /** Previsão de entrega do pedido para hoje (instantes reais, ms). */
@@ -55,6 +60,8 @@ export const CHAVE_AGORA = "agora";
 
 type Opcoes = {
   modoTeste?: boolean;
+  /** Chave do admin. "fechado": avisa que está fechado e só deixa agendar. "aberto": libera o pedido para hoje. */
+  modoLoja?: ModoLoja;
   config?: Pick<typeof loja, "agenda" | "janelas">;
 };
 
@@ -62,6 +69,7 @@ type Opcoes = {
 export function calcularAgenda(agora: Date | number, opcoes: Opcoes = {}): Agenda {
   const { agenda: A, janelas } = opcoes.config ?? loja;
   const teste = !!opcoes.modoTeste;
+  const manual = opcoes.modoLoja === "aberto" || opcoes.modoLoja === "fechado" ? opcoes.modoLoja : null;
   const parede = paredeSP(agora);
   const dow = parede.getUTCDay();
   const min = minutosDoDia(parede);
@@ -69,11 +77,15 @@ export function calcularAgenda(agora: Date | number, opcoes: Opcoes = {}): Agend
   const em = (offsetDias: number, minuto: number) =>
     instanteDaParede(new Date(inicioDoDia(parede) + offsetDias * 86_400_000 + minuto * 60_000));
 
-  const aberta = abertoNoDia(dow) && min >= A.abreMin && min < A.fechaMin;
+  const noHorario = abertoNoDia(dow) && min >= A.abreMin && min < A.fechaMin;
+  const aberta = manual ? manual === "aberto" : noHorario;
 
-  // Pedido para hoje: dia de funcionamento e ainda dentro do horário-limite.
-  const hojeDisponivel = teste || (abertoNoDia(dow) && min <= A.pedidoHojeAteMin);
-  const base = teste ? min : Math.max(min, A.abreMin);
+  // Pedido para hoje: dia de funcionamento e ainda dentro do horário-limite (ou o que o admin decidiu).
+  const hojeDisponivel =
+    manual === "fechado"
+      ? false
+      : teste || manual === "aberto" || (abertoNoDia(dow) && min <= A.pedidoHojeAteMin);
+  const base = teste || manual === "aberto" ? min : Math.max(min, A.abreMin);
   const previsao = hojeDisponivel
     ? { de: em(0, base + A.prazoMinimoMin), ate: em(0, base + A.prazoMaximoMin) }
     : null;
@@ -98,15 +110,16 @@ export function calcularAgenda(agora: Date | number, opcoes: Opcoes = {}): Agend
   }
 
   return {
-    modo: aberta || teste ? "aberta" : "fechada",
+    modo: (aberta || teste) && manual !== "fechado" ? "aberta" : "fechada",
     teste,
+    manual,
     agora: hojeDisponivel,
     previsao,
-    antesDeAbrir: hojeDisponivel && !aberta && !teste,
+    antesDeAbrir: hojeDisponivel && !aberta && !teste && !manual,
     hoje: isoData(parede),
     dias,
-    fechaEm: aberta ? em(0, A.fechaMin) : null,
-    abreEm: aberta || teste ? null : abreEm,
+    fechaEm: aberta && noHorario ? em(0, A.fechaMin) : null,
+    abreEm: aberta || teste || manual ? null : abreEm,
   };
 }
 
@@ -140,10 +153,18 @@ export function textosAgenda(ag: Agenda, agora: number, A: (typeof loja)["agenda
   if (ag.teste) {
     return { selo: "Modo teste", contagem: "", texto: "Pedidos liberados a qualquer hora (modo teste)." };
   }
+  if (ag.manual === "fechado") {
+    return {
+      selo: "Fechado agora",
+      contagem: "",
+      texto:
+        "No momento não estamos recebendo pedidos para hoje. Você pode fazer o pedido e agendar para outro dia.",
+    };
+  }
   if (ag.modo === "aberta") {
     return {
       selo: "Aberto agora",
-      contagem: `Fecha em ${contagem(ag.fechaEm! - agora)}.`,
+      contagem: ag.fechaEm ? `Fecha em ${contagem(ag.fechaEm - agora)}.` : "",
       texto: ag.agora
         ? `Delivery em ${prazo}. Peça agora ou agende para outro dia.`
         : `Pedidos para hoje vão até as ${hora(A.pedidoHojeAteMin)}. Agende o seu para o próximo dia.`,

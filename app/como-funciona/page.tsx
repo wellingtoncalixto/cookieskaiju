@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/Basicos";
 import { CabecalhoSite, Rodape } from "@/components/Moldura";
-import { loja, menorPreco } from "@/config/loja";
+import { loja } from "@/config/loja";
+import { menorPreco } from "@/lib/catalogo";
+import { obterCatalogo } from "@/server/catalogo";
 import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { brl } from "@/lib/formato";
 import { jsonLdFaq } from "@/lib/seo";
@@ -15,7 +17,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/como-funciona" },
 };
 
-const perguntas = [
+const montarPerguntas = (precoMinimo: number) => [
   {
     pergunta: "Quando posso fazer o pedido?",
     resposta: `A qualquer hora. Funcionamos aos sábados e domingos, das ${HORARIO_FUNCIONAMENTO}: pedindo para hoje, você recebe em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos; para outro dia, agenda o horário que preferir.`,
@@ -52,7 +54,7 @@ const perguntas = [
   },
   {
     pergunta: "Qual o tamanho dos cookies?",
-    resposta: `Todos os cookies têm ${loja.pesoGramas} g e são recheados. Os preços começam em ${brl(menorPreco())}.`,
+    resposta: `Todos os cookies têm ${loja.pesoGramas} g e são recheados. Os preços começam em ${brl(precoMinimo)}.`,
   },
 ];
 
@@ -66,7 +68,8 @@ const semana: [number, string, string][] = [
   [0, HORARIO_FUNCIONAMENTO, "entrega"],
 ];
 
-export default function ComoFunciona() {
+export default async function ComoFunciona() {
+  const perguntas = montarPerguntas(menorPreco(await obterCatalogo()));
   return (
     <>
       <JsonLd dados={jsonLdFaq(perguntas)} />

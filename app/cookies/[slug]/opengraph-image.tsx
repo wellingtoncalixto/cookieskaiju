@@ -2,7 +2,9 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
-import { loja, produtoPorSlug } from "@/config/loja";
+import { loja } from "@/config/loja";
+import { produtoPorSlug } from "@/lib/catalogo";
+import { obterCatalogo } from "@/server/catalogo";
 import { brl } from "@/lib/formato";
 
 export const alt = "Cookie da Cookies Kaiju";
@@ -10,16 +12,29 @@ export const size = { width: 1200, height: 630 };
 // JPEG: o PNG passava de 900 KB, e o WhatsApp costuma ignorar prévias acima de ~300 KB.
 export const contentType = "image/jpeg";
 
-export function generateStaticParams() {
-  return loja.produtos.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  return (await obterCatalogo()).map((p) => ({ slug: p.slug }));
+}
+
+/** Foto do sabor em JPEG: a enviada pelo admin (URL) ou a do repositório. */
+async function fotoDoSabor(p: { slug: string; foto?: string | null }) {
+  if (p.foto) {
+    const r = await fetch(p.foto);
+    if (r.ok)
+      return sharp(Buffer.from(await r.arrayBuffer()))
+        .jpeg()
+        .toBuffer();
+  }
+  return readFile(join(process.cwd(), "public", "cookies", `${p.slug}.jpg`));
 }
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const p = produtoPorSlug(slug) ?? loja.produtos[0];
+  const produtos = await obterCatalogo();
+  const p = produtoPorSlug(slug, produtos) ?? produtos[0] ?? loja.produtos[0];
   const [fonte, foto, logo] = await Promise.all([
     readFile(join(process.cwd(), "assets", "fonts", "LeagueSpartan-800.ttf")),
-    readFile(join(process.cwd(), "public", "cookies", `${p.slug}.jpg`)),
+    fotoDoSabor(p),
     readFile(join(process.cwd(), "public", "brand", "logo-cookies-kaiju.png")),
   ]);
   const src = (b: Buffer, tipo: string) => `data:${tipo};base64,${b.toString("base64")}`;

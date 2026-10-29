@@ -52,16 +52,17 @@ O selo da home passa a mostrar "Modo teste", a loja aparece como aberta (com o p
 
 ## Alterar cardápio, preços, horários e frete
 
-Tudo fica em um arquivo: [`src/config/loja.ts`](src/config/loja.ts).
+- **Preço, esgotado e novo sabor:** com o banco configurado, pelo **admin → Produtos** (o site atualiza na hora).
+  Sem banco, valem os `produtos` de [`src/config/loja.ts`](src/config/loja.ts) (`preco`, `disponivel`; foto em
+  `public/cookies/{slug}.jpg`).
 
-- **Preço:** mude `preco` do sabor.
-- **Esgotado:** mude `disponivel` para `false`. O sabor aparece com a etiqueta "Esgotado" e não pode ser adicionado.
-- **Novo sabor:** adicione um item em `produtos` e coloque a foto em `public/cookies/{slug}.jpg` (e o cartaz em `public/cookies/posters/{slug}-cartaz.jpg`).
+O resto fica em [`src/config/loja.ts`](src/config/loja.ts):
+
 - **Funcionamento e horários:** `agenda` (dias abertos, abertura, fechamento, prazo do pedido para hoje — 60 a 90 minutos —, horário-limite para pedir para hoje e quantos dias aparecem para agendar) e `janelas` (as faixas de 1 hora para agendar outros dias). O cliente sempre pode fazer o pedido: para hoje não escolhe horário; para outro dia, agenda.
 - **Frete:** `frete` (valor base, km incluídos e valor por km).
 - **Promoção:** `promo` (data-limite da entrega e quantidade mínima por cidade). Depois da data, a faixa some sozinha.
 
-Cardápio, ficha do produto, sacola, mensagem do WhatsApp, dados estruturados (JSON-LD) e o texto "a partir de R$" leem desse arquivo. Depois de editar, publique de novo.
+Depois de editar esse arquivo, publique de novo.
 
 ## Publicar na Vercel
 
@@ -88,6 +89,12 @@ Abra o site, faça uma simulação de pedido e, no navegador, veja a resposta de
 - `configuração: LOJA_LAT e LOJA_LON não definidas` → cadastre as variáveis na Vercel e publique de novo.
 - `HTTP 403` ou `HTTP 429` de algum serviço → o serviço gratuito está recusando o servidor. A solução definitiva é preencher `GOOGLE_MAPS_API_KEY`.
 
+## Admin, banco de dados e ChatGPT
+
+`/admin` (protegido por senha): abrir/fechar o delivery, pedidos de hoje e agendados, cadastro de produtos
+(o cardápio do site vem daqui) e precificação (insumos, receitas e forno). Banco Postgres (Neon) sem dados
+pessoais, com acesso só de leitura para um GPT personalizado. Instalação: [docs/ADMIN.md](docs/ADMIN.md).
+
 ## Privacidade (LGPD)
 
 - Só a sacola (sabores e quantidades) fica salva no navegador, em `localStorage`.
@@ -107,10 +114,12 @@ Abra o site, faça uma simulação de pedido e, no navegador, veja a resposta de
 ## Estrutura
 
 ```
-app/                 rotas (home, /cookies/[slug], checkout, /api/frete, sitemap, robots, manifest)
+app/                 rotas (home, /cookies/[slug], checkout, /admin, /api/*, sitemap, robots, manifest)
 app/@modal/          ficha do produto aberta como modal (rotas interceptadas)
 src/config/loja.ts   configuração única da loja
-src/lib/             regras de negócio puras (agenda, frete, mensagem, validação, SEO)
+src/lib/             regras de negócio puras (agenda, frete, mensagem, validação, SEO, precificação)
+src/server/          acesso ao banco e sessão do admin (só no servidor)
+db/migracoes/        tabelas e views do Postgres
 src/store/           sacola (persistida) e pedido (só em memória)
 src/components/      componentes da interface
 tests/               testes do Vitest

@@ -24,6 +24,14 @@ export type EstadoPedido = {
   tentou: { entrega: boolean; pagamento: boolean; revisao: boolean };
   /** Mensagem enviada (tela de confirmação). */
   mensagemEnviada: string | null;
+  /** ID do pedido (vai na mensagem e no painel). Muda se o conteúdo do pedido mudar. */
+  idPedido: string | null;
+  /** Conteúdo do pedido quando o ID foi gerado (ver assinaturaConteudo). */
+  idConteudo: string | null;
+  /** Número do pedido mostrado ao cliente (#57), reservado na revisão. */
+  numeroPedido: number | null;
+  /** Registro no painel da loja: só "registrado" depois da confirmação do servidor. */
+  registro: "inativo" | "enviando" | "registrado" | "falhou";
 };
 
 type Acoes = {
@@ -54,6 +62,10 @@ const inicial = (): EstadoPedido => ({
   obs: "",
   tentou: { entrega: false, pagamento: false, revisao: false },
   mensagemEnviada: null,
+  idPedido: null,
+  idConteudo: null,
+  numeroPedido: null,
+  registro: "inativo",
 });
 
 export const usePedido = create<EstadoPedido & Acoes>()((set) => ({

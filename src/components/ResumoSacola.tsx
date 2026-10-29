@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { imagemProduto } from "@/config/loja";
+import { imagemProduto } from "@/lib/catalogo";
 import { useAgenda } from "@/hooks/useAgenda";
 import { useResumoPedido } from "@/hooks/useResumoPedido";
 import { brl } from "@/lib/formato";
@@ -42,7 +42,7 @@ export function ResumoSacola({ variante }: { variante: "lateral" | "pagina" }) {
         {linhas.map(({ produto: p, quantidade }) => (
           <li key={p.slug}>
             <span className="ph">
-              <Image src={imagemProduto(p.slug)} alt="" width={56} height={56} sizes="56px" />
+              <Image src={imagemProduto(p)} alt="" width={56} height={56} sizes="56px" />
             </span>
             <span className="nm">
               <b>{p.nome}</b>

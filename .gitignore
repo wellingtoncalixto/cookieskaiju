@@ -40,3 +40,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# dados reais da loja (receitas, custos, pedidos): nunca versionar
+*.local.sql
+
+# banco local de desenvolvimento (PGlite)
+/.dados

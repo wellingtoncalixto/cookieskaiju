@@ -15,7 +15,7 @@ export const esquemaEndereco = z.object({
 
 export const esquemaDados = z.object({
   nome: obrigatorio("Informe seu nome."),
-  pagamento: z.enum(["pix", "cartao", "dinheiro"], { error: "Escolha a forma de pagamento." }),
+  pagamento: z.enum(["pix", "credito", "debito", "dinheiro"], { error: "Escolha a forma de pagamento." }),
 });
 
 function deZod(r: { success: boolean; error?: z.ZodError }, ordem: string[]): Erros {

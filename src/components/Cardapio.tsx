@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import type { Produto } from "@/config/loja";
+import { maximoNaSacola } from "@/lib/catalogo";
 import { brl } from "@/lib/formato";
 import { quantidadeTotal, subtotalSacola, useSacola } from "@/store/sacola";
 
 /** "+" redondo sobre a foto; depois do primeiro item vira o contador "− 2 +". */
-export function BotaoAdicionar({ produto }: { produto: Pick<Produto, "slug" | "nome" | "disponivel"> }) {
+export function BotaoAdicionar({
+  produto,
+}: {
+  produto: Pick<Produto, "slug" | "nome" | "disponivel" | "estoque">;
+}) {
   const q = useSacola((s) => s.itens[produto.slug] ?? 0);
   const somar = useSacola((s) => s.somar);
 
@@ -42,7 +47,7 @@ export function BotaoAdicionar({ produto }: { produto: Pick<Produto, "slug" | "n
         <button
           type="button"
           aria-label={`Adicionar mais um ${produto.nome}`}
-          disabled={!produto.disponivel}
+          disabled={!produto.disponivel || q >= maximoNaSacola(produto)}
           onClick={() => somar(produto.slug, 1)}
         >
           +

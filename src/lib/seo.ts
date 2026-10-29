@@ -1,6 +1,9 @@
-import { SITE_URL, imagemProduto, loja, menorPreco, type Produto } from "@/config/loja";
+import { SITE_URL, loja, type Produto } from "@/config/loja";
+import { imagemProduto, menorPreco } from "@/lib/catalogo";
 
 const abs = (path: string) => `${SITE_URL}${path}`;
+/** Fotos enviadas pelo admin já vêm com URL completa. */
+const absImagem = (src: string) => (src.startsWith("http") ? src : abs(src));
 const preco = (v: number) => v.toFixed(2);
 const hhmm = (min: number) =>
   `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
@@ -13,8 +16,8 @@ const oferta = (p: Produto) => ({
   url: abs(`/cookies/${p.slug}`),
 });
 
-export function jsonLdPadaria() {
-  const precos = loja.produtos.map((p) => p.preco);
+export function jsonLdPadaria(produtos: Produto[]) {
+  const precos = produtos.map((p) => p.preco);
   return {
     "@context": "https://schema.org",
     "@type": "Bakery",
@@ -51,12 +54,12 @@ export function jsonLdPadaria() {
       hasMenuSection: {
         "@type": "MenuSection",
         name: "Cookies",
-        description: `Cookies recheados de ${loja.pesoGramas} g, a partir de R$ ${preco(menorPreco())}.`,
-        hasMenuItem: loja.produtos.map((p) => ({
+        description: `Cookies recheados de ${loja.pesoGramas} g, a partir de R$ ${preco(menorPreco(produtos))}.`,
+        hasMenuItem: produtos.map((p) => ({
           "@type": "MenuItem",
           name: p.nome,
           description: p.descricao,
-          image: abs(imagemProduto(p.slug)),
+          image: absImagem(imagemProduto(p)),
           url: abs(`/cookies/${p.slug}`),
           offers: oferta(p),
         })),
@@ -83,7 +86,7 @@ export function jsonLdProduto(p: Produto) {
       "@type": "Product",
       name: `Cookie ${p.nome}`,
       description: p.descricao,
-      image: [abs(imagemProduto(p.slug))],
+      image: [absImagem(imagemProduto(p))],
       sku: p.slug,
       brand: { "@type": "Brand", name: loja.nome },
       category: "Cookies recheados",

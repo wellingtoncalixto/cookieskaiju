@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
     formats: ["image/avif", "image/webp"],
+    // Fotos dos sabores enviadas pelo admin (Vercel Blob).
+    remotePatterns: [new URL("https://*.public.blob.vercel-storage.com/**")],
     qualities: [75, 85],
   },
   async headers() {
@@ -21,7 +23,12 @@ const nextConfig: NextConfig = {
       },
       { source: "/(sacola|pedido)(.*)", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
       { source: "/referencia-index.html", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/admin(.*)", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
     ];
+  },
+  experimental: {
+    // Fotos do admin chegam já reduzidas no navegador (até ~1 MB); folga para o formulário.
+    serverActions: { bodySizeLimit: "4mb" },
   },
   turbopack: {
     rules: {

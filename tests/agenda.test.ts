@@ -115,3 +115,36 @@ describe("escolha de horário", () => {
     expect(textoHorario(ag, "2026-10-18|14h")).toBe("Domingo, 18/10 · 14h às 15h");
   });
 });
+
+describe("chave do admin (abrir/fechar)", () => {
+  it("fechado à mão no horário de funcionamento: avisa, some o 'para hoje' e mantém o agendamento", () => {
+    const ag = calcularAgenda(sp("17T15:00"), { modoLoja: "fechado" });
+    expect(ag.modo).toBe("fechada");
+    expect(ag.manual).toBe("fechado");
+    expect(ag.agora).toBe(false);
+    expect(ag.previsao).toBeNull();
+    expect(ag.abreEm).toBeNull();
+    expect(dias(ag)).toEqual(["2026-10-18", "2026-10-24", "2026-10-25", "2026-10-31"]);
+    expect(horarioValido(ag, CHAVE_AGORA)).toBe(false);
+    expect(textosAgenda(ag, sp("17T15:00").getTime())).toEqual({
+      selo: "Fechado agora",
+      contagem: "",
+      texto:
+        "No momento não estamos recebendo pedidos para hoje. Você pode fazer o pedido e agendar para outro dia.",
+    });
+  });
+
+  it("aberto à mão fora do calendário: libera o pedido para hoje a partir de agora", () => {
+    const ag = calcularAgenda(sp("16T19:00"), { modoLoja: "aberto" });
+    expect(ag.modo).toBe("aberta");
+    expect(ag.agora).toBe(true);
+    expect(ag.previsao).toEqual({ de: sp("16T20:00").getTime(), ate: sp("16T20:30").getTime() });
+    expect(textosAgenda(ag, sp("16T19:00").getTime())).toMatchObject({ selo: "Aberto agora", contagem: "" });
+  });
+
+  it("automático: igual ao calendário", () => {
+    expect(calcularAgenda(sp("17T15:00"), { modoLoja: "automatico" })).toEqual(
+      calcularAgenda(sp("17T15:00")),
+    );
+  });
+});

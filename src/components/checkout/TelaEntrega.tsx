@@ -8,8 +8,9 @@ import { CabecalhoEtapa, Carregando, ListaErros, TotalAcao } from "@/components/
 import { loja } from "@/config/loja";
 import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
 import { CHAVE_AGORA, chaveHorario, horarioValido, textoPrevisao } from "@/lib/agenda";
-import { mascaraCep, normalizar, soDigitos } from "@/lib/formato";
-import { textosTaxa, type EstadoFrete } from "@/lib/frete";
+import { mascaraCep, soDigitos } from "@/lib/formato";
+import { agendarFrete } from "@/lib/agendar-frete";
+import { textosTaxa } from "@/lib/frete";
 import type { Endereco } from "@/lib/mensagem";
 import { DIAS, DIAS_CURTOS, capitalizar, dataDeIso, ddmm } from "@/lib/tempo";
 import { usePedido } from "@/store/pedido";
@@ -309,71 +310,10 @@ export function TelaEntrega() {
  * sem CEP, usa rua, número, bairro e cidade.
  */
 function useFrete(e: Endereco, ativo: boolean) {
-  const seq = useRef(0);
   useEffect(() => {
     // Na retirada não há taxa: não calcula (e mantém o último cálculo, se o cliente voltar para entrega).
-    if (!ativo) return;
-    const { definir } = usePedido.getState();
-    const cep = soDigitos(e.cep);
-    const temCep = cep.length === 8;
-    const completo = temCep || (e.rua.trim() && e.numero.trim() && e.bairro.trim() && e.cidade.trim());
-    // Com CEP, o número não muda a localização: digitar o número não refaz o cálculo.
-    const chave = temCep
-      ? `cep:${cep}`
-      : [e.rua, e.numero, e.bairro, e.cidade, e.uf].map(normalizar).join("|");
-    if (!completo) {
-      if (usePedido.getState().frete.status !== "vazio")
-        definir({ frete: { status: "vazio" }, freteChave: "" });
-      return;
-    }
-    const atual = usePedido.getState();
-    if (chave === atual.freteChave && atual.frete.status !== "vazio") return;
-
-    const meu = ++seq.current;
-    const ctl = new AbortController();
-    const t = setTimeout(async () => {
-      definir({ frete: { status: "calculando" }, freteChave: chave });
-      let frete: EstadoFrete;
-      try {
-        // O CEP é localizado daqui do navegador: cada cliente usa a própria cota do serviço de CEP
-        // (do servidor, o IP compartilhado da hospedagem esbarra no limite de requisições).
-        const coordCep = temCep ? await localizarCep(cep, ctl.signal) : null;
-        const r = await fetch("/api/frete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            cep: e.cep,
-            rua: e.rua,
-            numero: e.numero,
-            bairro: e.bairro,
-            cidade: e.cidade,
-            uf: e.uf || "SP",
-            coordCep,
-          }),
-          signal: ctl.signal,
-        });
-        if (!r.ok) throw new Error();
-        const j = (await r.json()) as {
-          km1Decimal: number;
-          kmCobrado: number;
-          valor: number;
-          aproximado: boolean;
-        };
-        frete = { status: "ok", ...j };
-      } catch {
-        if (ctl.signal.aborted) return;
-        frete = { status: "falhou" };
-      }
-      if (meu === seq.current) definir({ frete });
-    }, 900);
-    return () => {
-      clearTimeout(t);
-      ctl.abort();
-      // Se a busca foi interrompida no meio, libera para recalcular.
-      if (usePedido.getState().frete.status === "calculando")
-        usePedido.getState().definir({ freteChave: "" });
-    };
-  }, [ativo, e.cep, e.rua, e.numero, e.bairro, e.cidade, e.uf]);
+    if (ativo) agendarFrete(e);
+  }, [ativo, e]);
 }
 
 /** Máscara do CEP e preenchimento automático pelo ViaCEP (direto do navegador). */
@@ -437,18 +377,4 @@ function useCep() {
   }
 
   return { ...estado, alterar };
-}
-
-/** CEP → coordenadas (AwesomeAPI), consultado pelo navegador. Retorna `null` se não houver coordenada. */
-async function localizarCep(cep: string, signal: AbortSignal) {
-  try {
-    const r = await fetch(`https://cep.awesomeapi.com.br/json/${cep}`, { signal });
-    if (!r.ok) return null;
-    const j = (await r.json()) as { lat?: string; lng?: string; city?: string };
-    const lat = Number(j.lat);
-    const lon = Number(j.lng);
-    return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon, cidade: j.city ?? "" } : null;
-  } catch {
-    return null;
-  }
 }

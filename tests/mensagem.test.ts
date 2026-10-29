@@ -20,7 +20,7 @@ const base: PedidoMensagem = {
     referencia: "portão preto",
   },
   taxa: { tipo: "calculada", valor: 5, km1Decimal: 4.2, kmCobrado: 5, aproximado: false },
-  pagamento: "cartao",
+  pagamento: "credito",
   troco: "",
   cliente: { nome: "Maria Souza" },
   obs: "",
@@ -35,7 +35,7 @@ describe("montarMensagemWhatsApp", () => {
     expect(msg).toContain("*Taxa de entrega:* R$ 5,00\n");
     expect(msg).not.toMatch(/\d km/);
     expect(msg).toContain("*TOTAL: R$ 64,00*");
-    expect(msg).toContain("*Pagamento:* Cartão por aproximação (na entrega)");
+    expect(msg).toContain("*Pagamento:* Cartão de crédito por aproximação (na entrega)");
     expect(msg).toMatchSnapshot();
   });
 
@@ -55,7 +55,7 @@ describe("montarMensagemWhatsApp", () => {
     });
     expect(msg).toContain("*Retirada*\nSábado, 17/10 · 14h às 15h\nLocal: a combinar com a loja");
     expect(msg).toContain("*TOTAL: R$ 59,00*");
-    expect(msg).toContain("*Pagamento:* Cartão por aproximação (na retirada)");
+    expect(msg).toContain("*Pagamento:* Cartão de crédito por aproximação (na retirada)");
     expect(msg).not.toContain("Rua Exemplo");
     expect(msg).not.toContain("Rota:");
     expect(msg).not.toContain("Taxa de entrega");
@@ -97,6 +97,11 @@ describe("montarMensagemWhatsApp", () => {
     const msg = montarMensagemWhatsApp({ ...base, horario: "O quanto antes (hoje, 17/10)" });
     expect(msg).toContain("*Entrega*\nO quanto antes (hoje, 17/10)\n");
     expect(msg).toMatchSnapshot();
+  });
+
+  it("com número do pedido: logo abaixo do título", () => {
+    const msg = montarMensagemWhatsApp({ ...base, id: "#57" });
+    expect(msg.split("\n").slice(0, 2)).toEqual(["*NOVO PEDIDO · COOKIES KAIJU*", "Pedido: #57"]);
   });
 
   it("modo teste", () => {

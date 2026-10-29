@@ -1,14 +1,16 @@
 import type { MetadataRoute } from "next";
-import { SITE_URL, loja } from "@/config/loja";
+import { SITE_URL } from "@/config/loja";
+import { obterCatalogo } from "@/server/catalogo";
 
 /** Data da última alteração de conteúdo (atualize ao mudar o cardápio ou os textos). */
 const ATUALIZADO_EM = new Date("2026-10-14");
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const produtos = await obterCatalogo();
   const url = (p: string) => `${SITE_URL}${p}`;
   return [
     { url: url("/"), lastModified: ATUALIZADO_EM, changeFrequency: "weekly", priority: 1 },
-    ...loja.produtos.map((p) => ({
+    ...produtos.map((p) => ({
       url: url(`/cookies/${p.slug}`),
       lastModified: ATUALIZADO_EM,
       changeFrequency: "weekly" as const,
