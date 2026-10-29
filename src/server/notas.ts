@@ -1,6 +1,6 @@
 import "server-only";
 import { obterBanco } from "@/server/db";
-import type { NotaLida } from "@/server/leitura-nota";
+import { sanearNota, type NotaLida } from "@/server/leitura-nota";
 import { recalcularCustosProdutos } from "@/server/precificacao";
 
 /**
@@ -188,4 +188,20 @@ export async function descartarNota(id: number) {
     "update notas_compra set status = 'descartada' where id = $1 and status = 'rascunho'",
     [id],
   );
+}
+
+/**
+ * Nota lida pelo ChatGPT (plugin): valida os itens, confere os insumos citados e grava só como RASCUNHO.
+ * Preços, custos e despesas só mudam quando o admin confere e aplica a nota.
+ */
+export async function registrarNotaDoChatGpt(
+  n: NotaLida,
+): Promise<{ id: number; itens: number } | { erro: string }> {
+  const insumos = await obterBanco().consulta<{ id: number; nome: string; unidade: string }>(
+    "select id, nome, unidade from insumos",
+  );
+  const limpa = sanearNota(n, insumos);
+  if (!limpa.itens.length) return { erro: "Nenhum item válido na nota." };
+  const id = await salvarRascunho(limpa, "Lida pelo ChatGPT");
+  return { id, itens: limpa.itens.length };
 }

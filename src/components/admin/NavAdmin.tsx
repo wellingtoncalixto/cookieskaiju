@@ -11,13 +11,12 @@ const LINKS = [
   { href: "/admin/financeiro", rotulo: "Financeiro" },
 ];
 
-/** `compras`: só aparece com a leitura de notas configurada (ANTHROPIC_API_KEY). */
-export function NavAdmin({ sair, compras }: { sair: () => Promise<void>; compras: boolean }) {
+export function NavAdmin({ sair }: { sair: () => Promise<void> }) {
   const caminho = usePathname();
   const atual = (href: string) => (href === "/admin" ? caminho === href : caminho.startsWith(href));
   return (
     <nav className="adm-nav" aria-label="Seções do admin">
-      {LINKS.filter((l) => compras || l.href !== "/admin/compras").map((l) => (
+      {LINKS.map((l) => (
         <Link key={l.href} href={l.href} aria-current={atual(l.href) ? "page" : undefined}>
           {l.rotulo}
         </Link>

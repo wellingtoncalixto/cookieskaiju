@@ -89,7 +89,8 @@ Cadastre a mesma senha na Vercel como `GPT_LEITURA_SENHA`. O site monta a conex�
 
 **b) Plugin no ChatGPT (servidor MCP).** O site expõe um servidor MCP somente leitura em
 `https://www.cookieskaiju.com.br/api/mcp`, com a chave no cabeçalho `Authorization: Bearer <GPT_API_CHAVE>`.
-Ferramentas: `ver_esquema` e `consultar`. (Para clientes sem cabeçalho, também existe
+Ferramentas: `ver_esquema` e `consultar` (somente leitura) e `registrar_nota_compra`, que grava uma nota/cupom de
+compra lido pelo ChatGPT só como **rascunho** em Admin → Compras (preços e despesas mudam apenas quando você aplica). (Para clientes sem cabeçalho, também existe
 `/api/mcp/<GPT_API_CHAVE>`.)
 
 1. ChatGPT → **Configurações → Segurança e login** → ligue o **Modo desenvolvedor** (planos pagos).
