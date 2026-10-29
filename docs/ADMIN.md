@@ -87,13 +87,17 @@ alter role gpt_leitura set statement_timeout = '10s';
 
 Cadastre a mesma senha na Vercel como `GPT_LEITURA_SENHA`. O site monta a conexão de leitura a partir da `DATABASE_URL` do deploy, então ela acompanha também as branches de Preview do Neon (que herdam os usuários do banco principal).
 
-**b) GPT personalizado.** Em chatgpt.com → **Explorar GPTs → Criar → Configurar → Ações → Criar nova ação**:
+**b) Plugin no ChatGPT (servidor MCP).** O site expõe um servidor MCP somente leitura em
+`https://www.cookieskaiju.com.br/api/mcp/<GPT_API_CHAVE>` (a chave fica no próprio endereço: o ChatGPT só aceita
+"sem autenticação" ou OAuth; sem o endereço completo, a resposta é 404). Ferramentas: `ver_esquema` e `consultar`.
 
-1. **Importar de URL**: `https://www.cookieskaiju.com.br/api/gpt/openapi.json`
-2. **Autenticação**: Chave de API · tipo **Bearer** · cole a `GPT_API_CHAVE`.
-3. Nas instruções do GPT, algo como: "Você analisa os dados da Cookies Kaiju. Antes de consultar, chame
-   `lerEsquema`. Use `consultar` com SQL do PostgreSQL. Considere só pedidos com status 'concluido' para
-   vendas, salvo pedido contrário. Valores em reais."
+1. ChatGPT → **Configurações → Segurança e login** → ligue o **Modo desenvolvedor** (planos pagos).
+2. **Plugins** → **+** → crie um plugin/app MCP: nome `Cookies Kaiju — Dados`, endereço acima, autenticação
+   **Nenhuma**.
+3. Confira as duas ferramentas e use numa conversa nova. Ao mudar as ferramentas, abra o plugin e toque em **Atualizar**.
+
+Trate o endereço como uma senha. Para trocar, gere outra `GPT_API_CHAVE` na Vercel, publique e atualize o plugin.
+A API REST antiga (`/api/gpt/*`, com `Authorization: Bearer`) continua disponível.
 
 O ChatGPT só consegue ler: o usuário do banco não tem permissão de escrita, cada consulta roda numa transação
 somente leitura e cada resposta tem no máximo 500 linhas.
