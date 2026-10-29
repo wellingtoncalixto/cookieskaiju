@@ -3,7 +3,8 @@
 O `/admin` substitui o Painel Comercial e a planilha de precificação:
 
 - **Operação**: abre e fecha o delivery e mostra os pedidos de hoje e os agendados (código, itens, hora em que
-  foi feito, cookies, entrega e total), com botões de status (concluído, cancelado, abandonado).
+  foi feito, cookies, entrega e total), com botões de status (concluído, cancelado, abandonado). Pedidos
+  cancelados somem da lista, mas continuam no banco.
 - **Produtos**: cardápio do site (nome, preço de venda, foto, esgotado, ativo, ordem). O site lê daqui.
 - **Precificação**: insumos, receitas (a massa é uma receita "base" usada pelos sabores) e forno elétrico.
   Qualquer mudança recalcula o custo, o lucro e a margem de todos os sabores.

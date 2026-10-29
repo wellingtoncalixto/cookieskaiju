@@ -195,7 +195,10 @@ export type PedidoOperacao = {
   itens: { nome: string; quantidade: number; preco: number }[];
 };
 
-/** Pedidos com entrega de hoje em diante (São Paulo), na ordem de entrega. */
+/**
+ * Pedidos com entrega de hoje em diante (São Paulo), na ordem de entrega, mais os pendentes de dias anteriores,
+ * para poderem ser concluídos (só pedido concluído entra no financeiro).
+ */
 export async function pedidosDaOperacao(hoje: string): Promise<PedidoOperacao[]> {
   return obterBanco().consulta<PedidoOperacao>(
     `select p.id, p.numero, ${epochMs("p.criado_em")} as "criadoEm", p.entrega_data::text as "entregaData",
@@ -206,7 +209,7 @@ export async function pedidosDaOperacao(hoje: string): Promise<PedidoOperacao[]>
                                                          'preco', i.preco_unitario::float8) order by i.id)
                         from itens_pedido i where i.pedido_id = p.id), '[]'::json) as itens
        from pedidos p
-      where p.entrega_data >= $1::date
+      where p.entrega_data >= $1::date or p.status = 'pendente'
       order by p.entrega_data, (p.entrega_faixa <> 'agora'), p.entrega_faixa, p.criado_em`,
     [hoje],
   );

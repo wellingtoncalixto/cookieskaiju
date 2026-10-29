@@ -251,7 +251,7 @@ export default async function Financeiro({ searchParams }: Props) {
       {(r.pendentes > 0 || r.perdidos > 0 || r.semContribuicao > 0) && (
         <p className="adm-mute">
           {r.pendentes > 0 &&
-            `Ainda pendentes: ${r.pendentes} pedido(s), ${brl(r.valorPendente)} (fora das contas). `}
+            `Ainda pendentes: ${r.pendentes} pedido(s), ${brl(r.valorPendente)} (fora das contas até serem marcados como concluídos na Operação). `}
           {r.perdidos > 0 && `Cancelados ou abandonados: ${r.perdidos}. `}
           {r.semContribuicao > 0 &&
             `${r.semContribuicao} pedido(s) com frete a confirmar ficaram fora dos custos.`}
