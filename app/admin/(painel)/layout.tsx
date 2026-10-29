@@ -13,7 +13,7 @@ export default async function LayoutPainel({ children }: { children: React.React
         <div className="adm-wrap">
           <span className="adm-marca">Kaiju Admin</span>
           <AlertaPedidos />
-          <NavAdmin sair={sair} compras={Boolean(process.env.ANTHROPIC_API_KEY)} />
+          <NavAdmin sair={sair} />
         </div>
       </header>
       <main className="adm-wrap">

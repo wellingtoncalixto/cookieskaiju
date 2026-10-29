@@ -23,16 +23,22 @@ export default async function Compras({ searchParams }: Props) {
       <Aviso busca={searchParams} />
       <h1>Compras</h1>
       <p className="adm-mute">
-        Envie a foto ou o PDF da nota de uma compra da loja. A IA lê os itens, sugere o insumo de cada um e
-        você confere antes de aplicar: os preços dos insumos são atualizados (e os custos dos sabores
-        recalculados) e o total vira uma despesa no financeiro.
+        Notas e cupons de compras da loja. Cada nota chega como rascunho: você confere os itens e toca em
+        Aplicar nota. Aí os preços dos insumos são atualizados (e os custos dos sabores recalculados) e o
+        total vira uma despesa no financeiro.
       </p>
-      {!process.env.ANTHROPIC_API_KEY && (
-        <p className="adm-aviso erro">
-          Leitura de notas não configurada: falta a variável ANTHROPIC_API_KEY na Vercel.
-        </p>
+      {process.env.ANTHROPIC_API_KEY ? (
+        <EnviarNota acao={lerNotaAcao} />
+      ) : (
+        <div className="adm-card">
+          <h3 className="titulo-graf">Envie a nota pelo ChatGPT</h3>
+          <p className="adm-mute" style={{ marginBottom: 0 }}>
+            No ChatGPT, com o plugin <b>Cookies Kaiju — Dados</b> ativo, mande a foto ou o PDF da nota e peça
+            “registra essa compra”. Confira os itens que ele mostrar e confirme: a nota aparece aqui embaixo
+            para você aplicar.
+          </p>
+        </div>
       )}
-      <EnviarNota acao={lerNotaAcao} />
 
       <h2>Notas enviadas</h2>
       <div className="adm-tabela">
