@@ -3,12 +3,12 @@ import { definirEstoqueAcao, definirModoLoja, definirStatusPedido } from "../aco
 import { AtualizarSozinho } from "@/components/admin/AtualizarSozinho";
 import { Aviso } from "@/components/admin/Aviso";
 import { loja } from "@/config/loja";
-import { CHAVE_AGORA, calcularAgenda, horaDe, textosAgenda, type ModoLoja } from "@/lib/agenda";
+import { CHAVE_AGORA, calcularAgenda, hora, horaDe, textosAgenda, type ModoLoja } from "@/lib/agenda";
 import { brl } from "@/lib/formato";
 import { DIAS, dataDeIso, ddmm, isoData, paredeSP } from "@/lib/tempo";
 import { bancoConfigurado } from "@/server/db";
 import { estoqueAtual } from "@/server/estoque";
-import { lerModoLoja } from "@/server/modo-loja";
+import { lerEstadoLoja } from "@/server/modo-loja";
 import { pedidosDaOperacao, type PedidoOperacao, type StatusPedido } from "@/server/pedidos";
 import { exigirAdmin } from "@/server/sessao-admin";
 
@@ -39,18 +39,24 @@ const PAGAMENTO: Record<string, string> = {
 async function carregar() {
   const agora = Date.now();
   const hoje = isoData(paredeSP(agora));
-  const [modo, pedidos, estoque] = await Promise.all([
-    lerModoLoja(),
+  const [{ modo, abreAs }, pedidos, estoque] = await Promise.all([
+    lerEstadoLoja(),
     bancoConfigurado() ? pedidosDaOperacao(hoje) : Promise.resolve([]),
     bancoConfigurado() ? estoqueAtual() : Promise.resolve([]),
   ]);
-  const agenda = calcularAgenda(agora, { modoLoja: modo });
-  return { hoje, modo, pedidos, estoque, agenda, textos: textosAgenda(agenda, agora) };
+  const agenda = calcularAgenda(agora, { modoLoja: modo, abreAs });
+  return { hoje, modo, abreAs, pedidos, estoque, agenda, textos: textosAgenda(agenda, agora) };
 }
+
+/** Horas para o "abre mais tarde": de 30 em 30 min, das 10h até meia hora antes de fechar. */
+const HORAS_ABRIR = Array.from(
+  { length: (loja.agenda.fechaMin - 30 - 600) / 30 + 1 },
+  (_, i) => 600 + i * 30,
+);
 
 export default async function Operacao({ searchParams }: Props) {
   await exigirAdmin();
-  const { hoje, modo, pedidos, estoque, agenda, textos } = await carregar();
+  const { hoje, modo, abreAs, pedidos, estoque, agenda, textos } = await carregar();
   const aberto = agenda.modo === "aberta";
 
   // Cancelados saem da tela (continuam no banco e no financeiro).
@@ -78,11 +84,22 @@ export default async function Operacao({ searchParams }: Props) {
               {m.rotulo}
             </button>
           ))}
+          <label className="adm-campo" style={{ gridColumn: "1 / -1" }}>
+            <span>Hora de abrir (para o “Abre mais tarde”)</span>
+            <select name="abreAs" defaultValue={abreAs ?? ""}>
+              <option value="">Sem hora: eu abro à mão</option>
+              {HORAS_ABRIR.map((h) => (
+                <option key={h} value={h}>
+                  {hora(h)}
+                </option>
+              ))}
+            </select>
+          </label>
         </form>
         <p className="adm-mute" style={{ margin: "8px 0 0" }}>
           Fechado: o site avisa e só deixa agendar para os próximos dias. Abre mais tarde: fechado agora, mas
-          aceita agendamento nas faixas que ainda restam hoje (volta ao automático amanhã). Aberto: libera pedido
-          para hoje mesmo fora do horário.
+          aceita agendamento para hoje nas faixas a partir da hora escolhida; nessa hora abre sozinho (volta
+          ao automático amanhã). Aberto: libera pedido para hoje mesmo fora do horário.
         </p>
       </section>
 

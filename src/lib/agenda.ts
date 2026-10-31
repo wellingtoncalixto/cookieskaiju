@@ -68,6 +68,8 @@ type Opcoes = {
    * "mais_tarde": como fechado, mas também deixa agendar as faixas de hoje que começam depois do prazo mínimo.
    */
   modoLoja?: ModoLoja;
+  /** No "mais_tarde": hora em que abre hoje (minutos do dia). A partir dela, a loja fica aberta. */
+  abreAs?: number | null;
   config?: Pick<typeof loja, "agenda" | "janelas">;
 };
 
@@ -75,11 +77,15 @@ type Opcoes = {
 export function calcularAgenda(agora: Date | number, opcoes: Opcoes = {}): Agenda {
   const { agenda: A, janelas } = opcoes.config ?? loja;
   const teste = !!opcoes.modoTeste;
-  const manual = opcoes.modoLoja && opcoes.modoLoja !== "automatico" ? opcoes.modoLoja : null;
-  const fechadoAMao = manual === "fechado" || manual === "mais_tarde";
   const parede = paredeSP(agora);
   const dow = parede.getUTCDay();
   const min = minutosDoDia(parede);
+  const abreAs = opcoes.modoLoja === "mais_tarde" ? (opcoes.abreAs ?? null) : null;
+  // "Abre mais tarde" com hora marcada: chegou a hora, fica aberto até o horário-limite do pedido para hoje.
+  const modoLoja =
+    abreAs != null && min >= abreAs ? (min <= A.pedidoHojeAteMin ? "aberto" : "fechado") : opcoes.modoLoja;
+  const manual = modoLoja && modoLoja !== "automatico" ? modoLoja : null;
+  const fechadoAMao = manual === "fechado" || manual === "mais_tarde";
   const abertoNoDia = (d: number) => (A.diasAbertos as readonly number[]).includes(d);
   const em = (offsetDias: number, minuto: number) =>
     instanteDaParede(new Date(inicioDoDia(parede) + offsetDias * 86_400_000 + minuto * 60_000));
@@ -100,7 +106,7 @@ export function calcularAgenda(agora: Date | number, opcoes: Opcoes = {}): Agend
   // No "abre mais tarde", hoje vem primeiro, só com as faixas que começam depois do prazo mínimo.
   const dias: DiaEntrega[] = [];
   if (manual === "mais_tarde") {
-    const restantes = janelas.filter((j) => j.inicio >= min + A.prazoMinimoMin);
+    const restantes = janelas.filter((j) => j.inicio >= min + A.prazoMinimoMin && j.inicio >= (abreAs ?? 0));
     if (restantes.length)
       dias.push({ data: isoData(parede), diaSemana: dow, janelas: restantes.map((j) => ({ ...j })) });
   }
@@ -132,7 +138,8 @@ export function calcularAgenda(agora: Date | number, opcoes: Opcoes = {}): Agend
     hoje: isoData(parede),
     dias,
     fechaEm: aberta && noHorario ? em(0, A.fechaMin) : null,
-    abreEm: aberta || teste || manual ? null : abreEm,
+    abreEm:
+      manual === "mais_tarde" && abreAs != null ? em(0, abreAs) : aberta || teste || manual ? null : abreEm,
   };
 }
 
@@ -151,7 +158,8 @@ export const dataDoHorario = (agenda: Agenda | null, chave: string | null | unde
   chave === CHAVE_AGORA ? (agenda?.hoje ?? null) : (chave?.split("|")[0] ?? null);
 
 /** 780 → "13h"; 790 → "13h10". */
-const hora = (min: number) => `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, "0") : ""}`;
+export const hora = (min: number) =>
+  `${Math.floor(min / 60)}h${min % 60 ? String(min % 60).padStart(2, "0") : ""}`;
 
 /** Instante real → "15h10" no horário de São Paulo. */
 export const horaDe = (instante: number) => hora(minutosDoDia(paredeSP(instante)));
@@ -166,12 +174,12 @@ export function textosAgenda(ag: Agenda, agora: number, A: (typeof loja)["agenda
   if (ag.teste) {
     return { selo: "Modo teste", contagem: "", texto: "Pedidos liberados a qualquer hora (modo teste)." };
   }
-  if (ag.manual === "mais_tarde" && ag.dias[0]?.data === ag.hoje) {
+  if (ag.manual === "mais_tarde" && (ag.abreEm || ag.dias[0]?.data === ag.hoje)) {
+    const agendaHoje = ag.dias[0]?.data === ag.hoje;
     return {
       selo: "Fechado agora",
-      contagem: "",
-      texto:
-        "Abrimos mais tarde hoje. Você já pode fazer o pedido e agendar um horário para hoje ou outro dia.",
+      contagem: ag.abreEm ? `Abre em ${contagem(ag.abreEm - agora)}.` : "",
+      texto: `${ag.abreEm ? `Abrimos hoje às ${horaDe(ag.abreEm)}.` : "Abrimos mais tarde hoje."} Você já pode fazer o pedido e agendar um horário para ${agendaHoje ? "hoje ou outro dia" : "outro dia"}.`,
     };
   }
   if (ag.manual === "fechado" || ag.manual === "mais_tarde") {
