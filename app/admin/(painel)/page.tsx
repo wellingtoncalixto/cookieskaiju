@@ -84,17 +84,25 @@ export default async function Operacao({ searchParams }: Props) {
               {m.rotulo}
             </button>
           ))}
-          <label className="adm-campo" style={{ gridColumn: "1 / -1" }}>
-            <span>Hora de abrir (para o “Abre mais tarde”)</span>
-            <select name="abreAs" defaultValue={abreAs ?? ""}>
-              <option value="">Sem hora: eu abro à mão</option>
-              {HORAS_ABRIR.map((h) => (
-                <option key={h} value={h}>
-                  {hora(h)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="adm-campo" style={{ gridColumn: "1 / -1" }}>
+            <label htmlFor="abreAs" style={{ fontSize: 13, color: "var(--bone-dim)" }}>
+              Hora de abrir (para o “Abre mais tarde”)
+            </label>
+            <div style={{ display: "flex", gap: 6 }}>
+              <select id="abreAs" name="abreAs" defaultValue={abreAs ?? ""} style={{ flex: 1 }}>
+                <option value="">Sem hora: eu abro à mão</option>
+                {HORAS_ABRIR.map((h) => (
+                  <option key={h} value={h}>
+                    {hora(h)}
+                  </option>
+                ))}
+              </select>
+              {/* Salva a hora e já liga o "Abre mais tarde". */}
+              <button type="submit" name="modo" value="mais_tarde" style={{ padding: "0 16px" }}>
+                Salvar hora
+              </button>
+            </div>
+          </div>
         </form>
         <p className="adm-mute" style={{ margin: "8px 0 0" }}>
           Fechado: o site avisa e só deixa agendar para os próximos dias. Abre mais tarde: fechado agora, mas
