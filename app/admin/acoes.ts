@@ -5,6 +5,7 @@ import { revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { hora } from "@/lib/agenda";
 import { modoValido, gravarModoLoja } from "@/server/modo-loja";
 import { TAG_CATALOGO } from "@/server/catalogo";
 import {
@@ -89,13 +90,18 @@ export async function definirModoLoja(form: FormData) {
   await exigirAdmin();
   const modo = texto(form, "modo");
   if (!modoValido(modo)) voltar("/admin", { erro: "Opção inválida." });
-  const r = await gravarModoLoja(modo);
+  const abre = Number(texto(form, "abreAs"));
+  const abreAs = texto(form, "abreAs") && Number.isInteger(abre) && abre >= 0 && abre < 1440 ? abre : null;
+  const r = await gravarModoLoja(modo, abreAs);
   if (!r.ok) voltar("/admin", { erro: r.erro });
   const msg = {
     automatico: "Loja seguindo o horário automático.",
     aberto: "Delivery aberto.",
     fechado: "Delivery fechado.",
-    mais_tarde: "Delivery fechado por enquanto, aceitando agendamento para hoje.",
+    mais_tarde:
+      abreAs != null
+        ? `Delivery fechado até as ${hora(abreAs)}, aceitando agendamento para hoje.`
+        : "Delivery fechado por enquanto, aceitando agendamento para hoje.",
   };
   voltar("/admin", { ok: `${msg[modo]} O site atualiza em até 1 minuto.` });
 }

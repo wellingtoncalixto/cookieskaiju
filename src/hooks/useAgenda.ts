@@ -6,14 +6,16 @@ import { calcularAgenda, textosAgenda, type Agenda, type ModoLoja } from "@/lib/
 
 export type SituacaoAgenda = { agenda: Agenda; agora: number; textos: ReturnType<typeof textosAgenda> };
 
-function calcular(modoLoja: ModoLoja): SituacaoAgenda {
+type Estado = { modo: ModoLoja; abreAs: number | null };
+
+function calcular({ modo, abreAs }: Estado): SituacaoAgenda {
   const agora = Date.now();
-  const agenda = calcularAgenda(agora, { modoTeste: MODO_TESTE, modoLoja });
+  const agenda = calcularAgenda(agora, { modoTeste: MODO_TESTE, modoLoja: modo, abreAs });
   return { agenda, agora, textos: textosAgenda(agenda, agora) };
 }
 
 // Chave abrir/fechar do admin, compartilhada por todos os componentes da página.
-let modoAtual: ModoLoja = "automatico";
+let modoAtual: Estado = { modo: "automatico", abreAs: null };
 let ultimaLeitura = 0;
 const ouvintes = new Set<() => void>();
 
@@ -22,9 +24,10 @@ async function lerModo() {
   ultimaLeitura = Date.now();
   try {
     const r = await fetch("/api/loja");
-    const j = (await r.json()) as { modo?: ModoLoja };
-    if (j.modo && j.modo !== modoAtual) {
-      modoAtual = j.modo;
+    const j = (await r.json()) as { modo?: ModoLoja; abreAs?: number | null };
+    const abreAs = j.abreAs ?? null;
+    if (j.modo && (j.modo !== modoAtual.modo || abreAs !== modoAtual.abreAs)) {
+      modoAtual = { modo: j.modo, abreAs };
       ouvintes.forEach((f) => f());
     }
   } catch {

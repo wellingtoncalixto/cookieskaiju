@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { usarBanco } from "@/server/db";
-import { gravarModoLoja, lerModoLoja } from "@/server/modo-loja";
+import { gravarModoLoja, lerEstadoLoja, lerModoLoja } from "@/server/modo-loja";
 import { bancoDeTeste } from "./apoio/banco";
 
 describe("chave abrir/fechar no banco", () => {
@@ -18,8 +18,10 @@ describe("chave abrir/fechar no banco", () => {
   it("abre mais tarde vale só no dia em que foi escolhido", async () => {
     const b = await bancoDeTeste();
     usarBanco(b);
+    await gravarModoLoja("mais_tarde", 15 * 60);
+    expect(await lerEstadoLoja()).toEqual({ modo: "mais_tarde", abreAs: 900 });
     await gravarModoLoja("mais_tarde");
-    expect(await lerModoLoja()).toBe("mais_tarde");
+    expect(await lerEstadoLoja()).toEqual({ modo: "mais_tarde", abreAs: null });
     await b.consulta("update estado_loja set atualizado_em = now() - interval '1 day'");
     expect(await lerModoLoja()).toBe("automatico");
   });

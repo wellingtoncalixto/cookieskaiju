@@ -147,6 +147,27 @@ describe("chave do admin (abrir/fechar)", () => {
     expect(textosAgenda(ag, sp("17T12:30").getTime()).texto).toMatch(/^Abrimos mais tarde hoje/);
   });
 
+  it("abre mais tarde às 15h: antes, agenda hoje a partir das 15h; na hora, abre sozinho", () => {
+    const antes = calcularAgenda(sp("17T12:00"), { modoLoja: "mais_tarde", abreAs: 15 * 60 });
+    expect(antes.modo).toBe("fechada");
+    expect(antes.agora).toBe(false);
+    expect(antes.dias[0].janelas.map((j) => j.id)).toEqual(["15h", "16h", "17h"]);
+    expect(antes.abreEm).toBe(sp("17T15:00").getTime());
+    expect(textosAgenda(antes, sp("17T12:00").getTime())).toMatchObject({
+      contagem: "Abre em 3h 00min.",
+      texto: "Abrimos hoje às 15h. Você já pode fazer o pedido e agendar um horário para hoje ou outro dia.",
+    });
+
+    const depois = calcularAgenda(sp("17T15:00"), { modoLoja: "mais_tarde", abreAs: 15 * 60 });
+    expect(depois.modo).toBe("aberta");
+    expect(depois.agora).toBe(true);
+    expect(dias(depois)[0]).toBe("2026-10-18");
+
+    const noite = calcularAgenda(sp("17T19:00"), { modoLoja: "mais_tarde", abreAs: 15 * 60 });
+    expect(noite.modo).toBe("fechada");
+    expect(noite.agora).toBe(false);
+  });
+
   it("abre mais tarde depois da última faixa: igual a fechado", () => {
     const ag = calcularAgenda(sp("17T16:30"), { modoLoja: "mais_tarde" });
     expect(dias(ag)).toEqual(["2026-10-18", "2026-10-24", "2026-10-25", "2026-10-31"]);
