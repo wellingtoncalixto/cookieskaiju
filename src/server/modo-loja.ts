@@ -29,10 +29,18 @@ export async function lerModoLoja(): Promise<ModoLoja> {
 
 export async function gravarModoLoja(modo: ModoLoja): Promise<{ ok: true } | { ok: false; erro: string }> {
   if (!bancoConfigurado()) return { ok: false, erro: "Banco de dados não configurado." };
-  await obterBanco().consulta(
-    `insert into estado_loja (id, modo, atualizado_em) values (true, $1, now())
-     on conflict (id) do update set modo = excluded.modo, atualizado_em = now()`,
-    [modo],
-  );
+  try {
+    await obterBanco().consulta(
+      `insert into estado_loja (id, modo, atualizado_em) values (true, $1, now())
+       on conflict (id) do update set modo = excluded.modo, atualizado_em = now()`,
+      [modo],
+    );
+  } catch (erro) {
+    console.error("modo-loja: falha ao gravar —", erro instanceof Error ? erro.message : erro);
+    return {
+      ok: false,
+      erro: "Não foi possível salvar. Se o banco ainda não foi atualizado, rode as migrações.",
+    };
+  }
   return { ok: true };
 }
