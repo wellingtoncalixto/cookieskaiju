@@ -134,6 +134,25 @@ describe("chave do admin (abrir/fechar)", () => {
     });
   });
 
+  it("abre mais tarde: fechado agora, sem 'para hoje', mas agenda as faixas que restam hoje", () => {
+    const ag = calcularAgenda(sp("17T12:30"), { modoLoja: "mais_tarde" });
+    expect(ag.modo).toBe("fechada");
+    expect(ag.agora).toBe(false);
+    expect(dias(ag)).toEqual(["2026-10-17", "2026-10-18", "2026-10-24", "2026-10-25", "2026-10-31"]);
+    // 12h30 + 60 min: a faixa das 13h já não dá tempo.
+    expect(ag.dias[0].janelas.map((j) => j.id)).toEqual(["14h", "15h", "16h", "17h"]);
+    expect(horarioValido(ag, "2026-10-17|14h")).toBe(true);
+    expect(horarioValido(ag, "2026-10-17|13h")).toBe(false);
+    expect(horarioValido(ag, CHAVE_AGORA)).toBe(false);
+    expect(textosAgenda(ag, sp("17T12:30").getTime()).texto).toMatch(/^Abrimos mais tarde hoje/);
+  });
+
+  it("abre mais tarde depois da última faixa: igual a fechado", () => {
+    const ag = calcularAgenda(sp("17T16:30"), { modoLoja: "mais_tarde" });
+    expect(dias(ag)).toEqual(["2026-10-18", "2026-10-24", "2026-10-25", "2026-10-31"]);
+    expect(textosAgenda(ag, sp("17T16:30").getTime()).texto).toMatch(/^No momento não estamos/);
+  });
+
   it("aberto à mão fora do calendário: libera o pedido para hoje a partir de agora", () => {
     const ag = calcularAgenda(sp("16T19:00"), { modoLoja: "aberto" });
     expect(ag.modo).toBe("aberta");

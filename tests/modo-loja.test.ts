@@ -15,6 +15,15 @@ describe("chave abrir/fechar no banco", () => {
     expect(await lerModoLoja()).toBe("aberto");
   });
 
+  it("abre mais tarde vale só no dia em que foi escolhido", async () => {
+    const b = await bancoDeTeste();
+    usarBanco(b);
+    await gravarModoLoja("mais_tarde");
+    expect(await lerModoLoja()).toBe("mais_tarde");
+    await b.consulta("update estado_loja set atualizado_em = now() - interval '1 day'");
+    expect(await lerModoLoja()).toBe("automatico");
+  });
+
   it("sem banco: segue o calendário e não grava", async () => {
     const antes = process.env.DATABASE_URL;
     delete process.env.DATABASE_URL;

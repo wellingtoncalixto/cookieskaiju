@@ -6,14 +6,20 @@ import { bancoConfigurado, obterBanco } from "@/server/db";
  * Chave abrir/fechar do admin, guardada no banco (tabela estado_loja).
  * Sem banco (ou se a leitura falhar), a loja segue o calendário ("automatico").
  */
-const MODOS: ModoLoja[] = ["automatico", "aberto", "fechado"];
+const MODOS: ModoLoja[] = ["automatico", "aberto", "fechado", "mais_tarde"];
 
 export const modoValido = (v: unknown): v is ModoLoja => MODOS.includes(v as ModoLoja);
 
 export async function lerModoLoja(): Promise<ModoLoja> {
   if (!bancoConfigurado()) return "automatico";
   try {
-    const [linha] = await obterBanco().consulta<{ modo: string }>("select modo from estado_loja");
+    // "Abre mais tarde" vale só no dia em que foi escolhido; no dia seguinte volta ao automático.
+    const [linha] = await obterBanco().consulta<{ modo: string; hoje: boolean }>(
+      `select modo, (atualizado_em at time zone 'America/Sao_Paulo')::date
+                    = (now() at time zone 'America/Sao_Paulo')::date as hoje
+         from estado_loja`,
+    );
+    if (linha?.modo === "mais_tarde" && !linha.hoje) return "automatico";
     return modoValido(linha?.modo) ? linha.modo : "automatico";
   } catch (erro) {
     console.error("modo-loja: falha ao ler o banco —", erro instanceof Error ? erro.message : erro);

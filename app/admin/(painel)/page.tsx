@@ -17,6 +17,7 @@ type Props = { searchParams: Promise<Record<string, string | string[] | undefine
 const MODOS: { modo: ModoLoja; rotulo: string }[] = [
   { modo: "automatico", rotulo: "Automático" },
   { modo: "aberto", rotulo: "Aberto" },
+  { modo: "mais_tarde", rotulo: "Abre mais tarde" },
   { modo: "fechado", rotulo: "Fechado" },
 ];
 
@@ -79,7 +80,9 @@ export default async function Operacao({ searchParams }: Props) {
           ))}
         </form>
         <p className="adm-mute" style={{ margin: "8px 0 0" }}>
-          Fechado: o site avisa e só deixa agendar. Aberto: libera pedido para hoje mesmo fora do horário.
+          Fechado: o site avisa e só deixa agendar para os próximos dias. Abre mais tarde: fechado agora, mas
+          aceita agendamento nas faixas que ainda restam hoje (volta ao automático amanhã). Aberto: libera pedido
+          para hoje mesmo fora do horário.
         </p>
       </section>
 
