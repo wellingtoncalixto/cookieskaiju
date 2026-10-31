@@ -95,6 +95,7 @@ export async function definirModoLoja(form: FormData) {
     automatico: "Loja seguindo o horário automático.",
     aberto: "Delivery aberto.",
     fechado: "Delivery fechado.",
+    mais_tarde: "Delivery fechado por enquanto, aceitando agendamento para hoje.",
   };
   voltar("/admin", { ok: `${msg[modo]} O site atualiza em até 1 minuto.` });
 }
