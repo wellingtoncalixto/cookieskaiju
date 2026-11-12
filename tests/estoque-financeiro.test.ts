@@ -43,31 +43,83 @@ describe("estoque", () => {
   });
   afterEach(() => usarBanco(null));
 
-  it("pedido reserva; sem unidades suficientes entra marcado; cancelar devolve; reativar reserva de novo", async () => {
+  const semEstoque = async (id: string) =>
+    (await b.consulta<{ sem_estoque: boolean }>("select sem_estoque from pedidos where id = $1", [id]))[0]
+      .sem_estoque;
+
+  it("pedido do site não mexe no estoque; concluir baixa; tirar de concluído devolve", async () => {
     const p1 = pedido([{ slug: "alfa", quantidade: 2 }]);
     expect(await registrarPedido(p1, AGORA, sem)).toEqual({ ok: true, duplicado: false, semEstoque: false });
+    expect(await estoque(b, "alfa")).toBe(3);
+    // Mais do que há: entra marcado, sem baixar.
+    const p2 = pedido([{ slug: "alfa", quantidade: 4 }]);
+    expect(await registrarPedido(p2, AGORA, sem)).toMatchObject({ ok: true, semEstoque: true });
+    expect(await estoque(b, "alfa")).toBe(3);
+    expect(await b.consulta("select id from movimentos_estoque")).toEqual([]);
+
+    await mudarStatus(p1.id, "concluido");
+    expect(await estoque(b, "alfa")).toBe(1);
+    await mudarStatus(p1.id, "concluido"); // de novo: não baixa duas vezes
     expect(await estoque(b, "alfa")).toBe(1);
 
-    const p2 = pedido([{ slug: "alfa", quantidade: 2 }]);
-    expect(await registrarPedido(p2, AGORA, sem)).toMatchObject({ ok: true, semEstoque: true });
+    // Concluir sem unidades suficientes: zera o que restava e marca.
+    await mudarStatus(p2.id, "concluido");
     expect(await estoque(b, "alfa")).toBe(0);
-
-    // Esgotado no site:
+    expect(await semEstoque(p2.id)).toBe(true);
     expect((await estoqueAtual()).find((s) => s.slug === "alfa")).toMatchObject({
       estoque: 0,
       disponivel: false,
     });
+    await mudarStatus(p2.id, "pendente"); // devolve só o que baixou (1)
+    expect(await estoque(b, "alfa")).toBe(1);
 
     await mudarStatus(p1.id, "cancelado");
-    expect(await estoque(b, "alfa")).toBe(2);
-    await mudarStatus(p1.id, "abandonado"); // continua inativo: não devolve de novo
-    expect(await estoque(b, "alfa")).toBe(2);
-    await mudarStatus(p1.id, "pendente");
-    expect(await estoque(b, "alfa")).toBe(0);
+    expect(await estoque(b, "alfa")).toBe(3);
+    await mudarStatus(p1.id, "abandonado"); // continua fora de concluído: não devolve de novo
+    expect(await estoque(b, "alfa")).toBe(3);
+    await mudarStatus(p1.id, "pendente"); // reativado: pendente não reserva
+    expect(await estoque(b, "alfa")).toBe(3);
+    await mudarStatus(p1.id, "concluido");
+    expect(await estoque(b, "alfa")).toBe(1);
+    await mudarStatus(p1.id, "abandonado");
+    expect(await estoque(b, "alfa")).toBe(3);
 
-    // Clique duplo não baixa duas vezes.
+    // Pendente novo ↔ cancelado não mexe.
+    const p3 = pedido([{ slug: "alfa", quantidade: 1 }]);
+    await registrarPedido(p3, AGORA, sem);
+    await mudarStatus(p3.id, "cancelado");
+    await mudarStatus(p3.id, "pendente");
+    expect(await estoque(b, "alfa")).toBe(3);
+
+    // Clique duplo no envio não grava nem baixa de novo.
     expect(await registrarPedido(p1, AGORA, sem)).toMatchObject({ duplicado: true });
-    expect(await estoque(b, "alfa")).toBe(0);
+    expect(await estoque(b, "alfa")).toBe(3);
+  });
+
+  it("pendente antigo (reservou ao chegar): concluir não baixa de novo; cancelar devolve a reserva", async () => {
+    // Pedidos de antes da regra: a reserva ficou nos movimentos.
+    const antigo = async () => {
+      const p = pedido([{ slug: "alfa", quantidade: 1 }]);
+      await registrarPedido(p, AGORA, sem);
+      await b.consulta("update produtos set estoque = estoque - 1 where slug = 'alfa'");
+      await b.consulta(
+        "insert into movimentos_estoque (produto_id, quantidade, motivo, pedido_id) values (1, -1, 'venda', $1)",
+        [p.id],
+      );
+      return p;
+    };
+    const a = await antigo();
+    const c = await antigo();
+    expect(await estoque(b, "alfa")).toBe(1);
+
+    await mudarStatus(a.id, "concluido");
+    expect(await estoque(b, "alfa")).toBe(1);
+    await mudarStatus(c.id, "cancelado");
+    expect(await estoque(b, "alfa")).toBe(2);
+    await mudarStatus(c.id, "concluido"); // reativado e concluído: agora baixa
+    expect(await estoque(b, "alfa")).toBe(1);
+    await mudarStatus(a.id, "pendente"); // sai de concluído: devolve a reserva antiga
+    expect(await estoque(b, "alfa")).toBe(2);
   });
 
   it("sabor sem controle de estoque não muda; contagem do admin vira ajuste", async () => {
@@ -79,14 +131,19 @@ describe("estoque", () => {
     expect(mov).toEqual([{ quantidade: 7, motivo: "ajuste" }]);
   });
 
-  it("dois pedidos ao mesmo tempo pela última unidade: só um leva", async () => {
+  it("dois pedidos concluídos ao mesmo tempo pela última unidade: só um leva; clique duplo baixa uma vez", async () => {
     await definirEstoque(1, 1);
-    const r = await Promise.all([
-      registrarPedido(pedido([{ slug: "alfa", quantidade: 1 }]), AGORA, sem),
-      registrarPedido(pedido([{ slug: "alfa", quantidade: 1 }]), AGORA, sem),
-    ]);
-    expect(r.filter((x) => x.ok && x.semEstoque)).toHaveLength(1);
+    const [x, y] = [pedido([{ slug: "alfa", quantidade: 1 }]), pedido([{ slug: "alfa", quantidade: 1 }])];
+    for (const p of [x, y]) await registrarPedido(p, AGORA, sem);
+    await Promise.all([mudarStatus(x.id, "concluido"), mudarStatus(y.id, "concluido")]);
+    expect([await semEstoque(x.id), await semEstoque(y.id)].filter(Boolean)).toHaveLength(1);
     expect(await estoque(b, "alfa")).toBe(0);
+
+    await definirEstoque(1, 3);
+    const z = pedido([{ slug: "alfa", quantidade: 2 }]);
+    await registrarPedido(z, AGORA, sem);
+    await Promise.all([mudarStatus(z.id, "concluido"), mudarStatus(z.id, "concluido")]);
+    expect(await estoque(b, "alfa")).toBe(1);
   });
 });
 
@@ -139,7 +196,7 @@ describe("financeiro", () => {
 describe("pedido manual (admin)", () => {
   afterEach(() => usarBanco(null));
 
-  it("recebe o próximo número, reserva estoque, calcula valores e entra no financeiro quando concluído", async () => {
+  it("recebe o próximo número, baixa estoque se já concluído, calcula valores e entra no financeiro", async () => {
     const b = await preparar();
     await b.consulta("select setval('pedidos_numero_seq', 9, false)");
     const r = await registrarPedidoManual(
@@ -198,5 +255,36 @@ describe("pedido manual (admin)", () => {
       AGORA,
     );
     expect(vazio.ok).toBe(false);
+  });
+
+  it("lançado pendente não baixa (avisa se faltam unidades); baixa ao concluir", async () => {
+    const b = await preparar();
+    const lancar = (quantidade: number) =>
+      registrarPedidoManual(
+        {
+          itens: [{ produtoId: 1, quantidade }],
+          modalidade: "retirada",
+          entregaData: "2026-10-24",
+          entregaFaixa: null,
+          pagamento: "pix",
+          cidade: "",
+          frete: null,
+          distanciaKm: null,
+          origem: "pessoal",
+          relacaoCliente: null,
+          comoConheceu: "",
+          status: "pendente",
+        },
+        AGORA,
+      );
+    expect(await lancar(2)).toMatchObject({ ok: true, semEstoque: false });
+    expect(await lancar(5)).toMatchObject({ ok: true, semEstoque: true });
+    expect(await estoque(b, "alfa")).toBe(3);
+    const ps = await b.consulta<{ id: string; sem_estoque: boolean }>(
+      "select id, sem_estoque from pedidos order by numero",
+    );
+    expect(ps.map((p) => p.sem_estoque)).toEqual([false, true]);
+    await mudarStatus(ps[0].id, "concluido");
+    expect(await estoque(b, "alfa")).toBe(1);
   });
 });
