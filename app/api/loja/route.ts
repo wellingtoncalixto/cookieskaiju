@@ -3,7 +3,7 @@ import { lerEstadoLoja } from "@/server/modo-loja";
 // Sempre lido na hora (nunca gerado no build).
 export const dynamic = "force-dynamic";
 
-/** Chave abrir/fechar do admin (e a hora de abrir, no "abre mais tarde"), lida pelo navegador. */
+/** Modo da loja (automático ou manual aberto/fechado) e horário de funcionamento, lidos pelo navegador. */
 export async function GET() {
   return Response.json(
     await lerEstadoLoja(),

@@ -44,8 +44,9 @@ describe("validação das etapas", () => {
     );
   });
 
-  it("faixa de hoje não vale: para hoje o cliente não escolhe horário", () => {
-    expect(errosEntrega(ctx(), { ...completo, horario: "2026-10-17|16h" }).campos).toContain("horario");
+  it("faixa de hoje só vale se ainda der tempo (prazo mínimo)", () => {
+    expect(errosEntrega(ctx(), { ...completo, horario: "2026-10-17|14h" }).campos).toContain("horario");
+    expect(errosEntrega(ctx(), { ...completo, horario: "2026-10-17|16h" }).campos).not.toContain("horario");
   });
 
   it("loja fechada não bloqueia: aceita horário agendado, mas não o pedido para hoje", () => {

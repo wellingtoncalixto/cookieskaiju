@@ -1,11 +1,13 @@
 import Link from "next/link";
-import { definirEstoqueAcao, definirModoLoja, definirStatusPedido } from "../acoes";
+import { definirEstoqueAcao, definirStatusPedido } from "../acoes";
 import { AtualizarSozinho } from "@/components/admin/AtualizarSozinho";
 import { Aviso } from "@/components/admin/Aviso";
+import { Funcionamento } from "@/components/admin/Funcionamento";
 import { loja } from "@/config/loja";
-import { CHAVE_AGORA, calcularAgenda, hora, horaDe, textosAgenda, type ModoLoja } from "@/lib/agenda";
+import { CHAVE_AGORA, calcularAgenda, horaDe, type Agenda, type ModoLoja } from "@/lib/agenda";
+import { faixaDeId, textoFuncionamento } from "@/lib/horario";
 import { brl } from "@/lib/formato";
-import { DIAS, dataDeIso, ddmm, isoData, paredeSP } from "@/lib/tempo";
+import { DIAS, capitalizar, dataDeIso, ddmm, isoData, paredeSP, somarDias } from "@/lib/tempo";
 import { bancoConfigurado } from "@/server/db";
 import { estoqueAtual } from "@/server/estoque";
 import { lerEstadoLoja } from "@/server/modo-loja";
@@ -13,13 +15,6 @@ import { pedidosDaOperacao, type PedidoOperacao, type StatusPedido } from "@/ser
 import { exigirAdmin } from "@/server/sessao-admin";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
-
-const MODOS: { modo: ModoLoja; rotulo: string }[] = [
-  { modo: "automatico", rotulo: "Automático" },
-  { modo: "aberto", rotulo: "Aberto" },
-  { modo: "mais_tarde", rotulo: "Abre mais tarde" },
-  { modo: "fechado", rotulo: "Fechado" },
-];
 
 const ROTULO_STATUS: Record<StatusPedido, string> = {
   pendente: "Pendente",
@@ -39,25 +34,48 @@ const PAGAMENTO: Record<string, string> = {
 async function carregar() {
   const agora = Date.now();
   const hoje = isoData(paredeSP(agora));
-  const [{ modo, abreAs }, pedidos, estoque] = await Promise.all([
+  const [{ modo, horario }, pedidos, estoque] = await Promise.all([
     lerEstadoLoja(),
     bancoConfigurado() ? pedidosDaOperacao(hoje) : Promise.resolve([]),
     bancoConfigurado() ? estoqueAtual() : Promise.resolve([]),
   ]);
-  const agenda = calcularAgenda(agora, { modoLoja: modo, abreAs });
-  return { hoje, modo, abreAs, pedidos, estoque, agenda, textos: textosAgenda(agenda, agora) };
+  const agenda = calcularAgenda(agora, { modoLoja: modo, horario });
+  const quando = textoFuncionamento(horario);
+  const resumo = quando ? `${capitalizar(quando)}.` : "nenhum dia aberto.";
+  return { hoje, modo, pedidos, estoque, agenda, estado: linhaEstado(agenda, modo), resumo };
 }
 
-/** Horas para o "abre mais tarde": de 30 em 30 min, das 10h até meia hora antes de fechar. */
-const HORAS_ABRIR = Array.from(
-  { length: (loja.agenda.fechaMin - 30 - 600) / 30 + 1 },
-  (_, i) => 600 + i * 30,
-);
+/**
+ * Linha de estado do cartão Funcionamento. Automático: "Aberto agora · fecha às 18h" ou
+ * "Fechado agora · abre sábado às 13h". Manual: "Aberto agora (à mão)", com uma explicação curta.
+ */
+function linhaEstado(ag: Agenda, modo: ModoLoja) {
+  if (modo === "aberto")
+    return {
+      texto: "Aberto agora (à mão)",
+      explicacao: "O site aceita pedido para hoje.",
+    };
+  if (modo === "fechado")
+    return {
+      texto: "Fechado agora (à mão)",
+      explicacao: "O site só deixa agendar para outros dias.",
+    };
+  if (ag.modo === "aberta")
+    return { texto: `Aberto agora${ag.fechaEm ? ` · fecha às ${horaDe(ag.fechaEm)}` : ""}`, explicacao: "" };
+  if (!ag.abreEm) return { texto: "Fechado agora · nenhum dia aberto no horário", explicacao: "" };
+  const data = isoData(paredeSP(ag.abreEm));
+  const dia =
+    data === ag.hoje
+      ? "hoje"
+      : data === isoData(somarDias(dataDeIso(ag.hoje), 1))
+        ? "amanhã"
+        : DIAS[paredeSP(ag.abreEm).getUTCDay()];
+  return { texto: `Fechado agora · abre ${dia} às ${horaDe(ag.abreEm)}`, explicacao: "" };
+}
 
 export default async function Operacao({ searchParams }: Props) {
   await exigirAdmin();
-  const { hoje, modo, abreAs, pedidos, estoque, agenda, textos } = await carregar();
-  const aberto = agenda.modo === "aberta";
+  const { hoje, modo, pedidos, estoque, agenda, estado, resumo } = await carregar();
 
   // Cancelados saem da tela (continuam no banco e no financeiro).
   const visiveis = pedidos.filter((p) => p.status !== "cancelado");
@@ -70,46 +88,13 @@ export default async function Operacao({ searchParams }: Props) {
       <Aviso busca={searchParams} />
 
       <h1>Operação</h1>
-      <section className="adm-card" aria-labelledby="t-delivery">
-        <p className={`adm-estado ${aberto ? "aberto" : ""}`} id="t-delivery" style={{ margin: 0 }}>
-          Delivery {aberto ? "aberto" : "fechado"} agora
-        </p>
-        <p className="adm-mute" style={{ margin: "6px 0 0" }}>
-          {modo === "automatico" ? "Seguindo o horário (sáb. e dom., 13h às 18h). " : ""}
-          {textos.texto}
-        </p>
-        <form action={definirModoLoja} className="adm-modo" aria-label="Abrir ou fechar o delivery">
-          {MODOS.map((m) => (
-            <button key={m.modo} type="submit" name="modo" value={m.modo} aria-pressed={modo === m.modo}>
-              {m.rotulo}
-            </button>
-          ))}
-          <div className="adm-campo" style={{ gridColumn: "1 / -1" }}>
-            <label htmlFor="abreAs" style={{ fontSize: 13, color: "var(--bone-dim)" }}>
-              Hora de abrir (para o “Abre mais tarde”)
-            </label>
-            <div style={{ display: "flex", gap: 6 }}>
-              <select id="abreAs" name="abreAs" defaultValue={abreAs ?? ""} style={{ flex: 1 }}>
-                <option value="">Sem hora: eu abro à mão</option>
-                {HORAS_ABRIR.map((h) => (
-                  <option key={h} value={h}>
-                    {hora(h)}
-                  </option>
-                ))}
-              </select>
-              {/* Salva a hora e já liga o "Abre mais tarde". */}
-              <button type="submit" name="modo" value="mais_tarde" style={{ padding: "0 16px" }}>
-                Salvar hora
-              </button>
-            </div>
-          </div>
-        </form>
-        <p className="adm-mute" style={{ margin: "8px 0 0" }}>
-          Fechado: o site avisa e só deixa agendar para os próximos dias. Abre mais tarde: fechado agora, mas
-          aceita agendamento para hoje nas faixas a partir da hora escolhida; nessa hora abre sozinho (volta
-          ao automático amanhã). Aberto: libera pedido para hoje mesmo fora do horário.
-        </p>
-      </section>
+      <Funcionamento
+        automatico={modo === "automatico"}
+        aberta={agenda.modo === "aberta"}
+        estado={estado.texto}
+        explicacao={estado.explicacao}
+        resumo={resumo}
+      />
 
       <h2>Estoque</h2>
       <section className="adm-card" aria-label="Estoque por sabor">
@@ -187,7 +172,7 @@ function tituloDia(data: string, hoje: string) {
 function textoFaixa(p: PedidoOperacao) {
   if (p.entregaFaixa === CHAVE_AGORA)
     return `Para hoje (${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} min)`;
-  return loja.janelas.find((j) => j.id === p.entregaFaixa)?.nome ?? p.entregaFaixa ?? "";
+  return faixaDeId(p.entregaFaixa)?.nome ?? p.entregaFaixa ?? "";
 }
 
 function Pedido({ p, hoje }: { p: PedidoOperacao; hoje: string }) {

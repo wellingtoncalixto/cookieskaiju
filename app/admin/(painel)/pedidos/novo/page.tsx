@@ -3,8 +3,10 @@ import { criarPedidoManualAcao } from "../../../acoes";
 import { Aviso } from "@/components/admin/Aviso";
 import { loja } from "@/config/loja";
 import { brl } from "@/lib/formato";
+import { faixasDoDia } from "@/lib/horario";
 import { isoData, paredeSP } from "@/lib/tempo";
 import { listarProdutos } from "@/server/cadastros";
+import { lerHorario } from "@/server/horario";
 import { exigirAdmin } from "@/server/sessao-admin";
 
 type Props = { searchParams: Promise<Record<string, string | string[] | undefined>> };
@@ -14,8 +16,13 @@ const hojeSP = () => isoData(paredeSP(Date.now()));
 
 export default async function NovoPedido({ searchParams }: Props) {
   await exigirAdmin();
-  const produtos = (await listarProdutos()).filter((p) => p.ativo);
+  const [todos, horario] = await Promise.all([listarProdutos(), lerHorario()]);
+  const produtos = todos.filter((p) => p.ativo);
   const hoje = hojeSP();
+  // Faixas de todos os dias abertos (o dia é escolhido à parte), em ordem de hora.
+  const faixas = [...new Map(horario.flatMap(faixasDoDia).map((j) => [j.id, j])).values()].sort(
+    (a, b) => a.inicio - b.inicio,
+  );
 
   return (
     <>
@@ -75,7 +82,7 @@ export default async function NovoPedido({ searchParams }: Props) {
                 <option value="agora">
                   Para hoje ({loja.agenda.prazoMinimoMin} a {loja.agenda.prazoMaximoMin} min)
                 </option>
-                {loja.janelas.map((j) => (
+                {faixas.map((j) => (
                   <option key={j.id} value={j.id}>
                     {j.nome}
                   </option>

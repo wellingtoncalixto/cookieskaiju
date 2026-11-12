@@ -1,56 +1,54 @@
 import "server-only";
 import type { ModoLoja } from "@/lib/agenda";
+import type { HorarioSemana } from "@/lib/horario";
 import { bancoConfigurado, obterBanco } from "@/server/db";
+import { lerHorario } from "@/server/horario";
 
 /**
- * Chave abrir/fechar do admin, guardada no banco (tabela estado_loja).
- * Sem banco (ou se a leitura falhar), a loja segue o calendário ("automatico").
+ * Modo da loja do admin, guardado no banco (tabela estado_loja):
+ * "automatico" segue o horário de funcionamento; "aberto"/"fechado" é o manual ("Loja aberta agora").
+ * O manual vale só no dia (São Paulo) em que foi escolhido: à meia-noite volta sozinho ao automático.
+ * Sem banco (ou se a leitura falhar), a loja segue o horário ("automatico").
  */
-const MODOS: ModoLoja[] = ["automatico", "aberto", "fechado", "mais_tarde"];
+const MODOS: ModoLoja[] = ["automatico", "aberto", "fechado"];
 
 export const modoValido = (v: unknown): v is ModoLoja => MODOS.includes(v as ModoLoja);
 
-/** Modo da loja e, no "mais_tarde", a hora em que abre hoje (minutos do dia; null = sem hora). */
-export type EstadoLoja = { modo: ModoLoja; abreAs: number | null };
+/** Modo da loja e horário de funcionamento (o que o site precisa para calcular a agenda). */
+export type EstadoLoja = { modo: ModoLoja; horario: HorarioSemana };
 
-const AUTOMATICO: EstadoLoja = { modo: "automatico", abreAs: null };
-
-export async function lerEstadoLoja(): Promise<EstadoLoja> {
-  if (!bancoConfigurado()) return AUTOMATICO;
+export async function lerModoLoja(): Promise<ModoLoja> {
+  if (!bancoConfigurado()) return "automatico";
   try {
-    // "Abre mais tarde" vale só no dia em que foi escolhido; no dia seguinte volta ao automático.
-    // abre_as lido via jsonb para funcionar também antes da migração 0007.
-    const [linha] = await obterBanco().consulta<{ modo: string; abre_as: number | null; hoje: boolean }>(
-      `select modo, (to_jsonb(e) ->> 'abre_as')::int as abre_as,
+    const [linha] = await obterBanco().consulta<{ modo: string; hoje: boolean }>(
+      `select modo,
               (atualizado_em at time zone 'America/Sao_Paulo')::date
                 = (now() at time zone 'America/Sao_Paulo')::date as hoje
-         from estado_loja e`,
+         from estado_loja`,
     );
-    if (!linha || !modoValido(linha.modo)) return AUTOMATICO;
-    if (linha.modo === "mais_tarde")
-      return linha.hoje ? { modo: "mais_tarde", abreAs: linha.abre_as } : AUTOMATICO;
-    return { modo: linha.modo, abreAs: null };
+    if (!linha || !modoValido(linha.modo)) return "automatico";
+    // Manual de outro dia: já passou da meia-noite, segue o horário.
+    return linha.modo !== "automatico" && !linha.hoje ? "automatico" : linha.modo;
   } catch (erro) {
     console.error("modo-loja: falha ao ler o banco —", erro instanceof Error ? erro.message : erro);
-    return AUTOMATICO;
+    return "automatico";
   }
 }
 
-export const lerModoLoja = async () => (await lerEstadoLoja()).modo;
+export async function lerEstadoLoja(): Promise<EstadoLoja> {
+  const [modo, horario] = await Promise.all([lerModoLoja(), lerHorario()]);
+  return { modo, horario };
+}
 
-export async function gravarModoLoja(
-  modo: ModoLoja,
-  abreAs: number | null = null,
-): Promise<{ ok: true } | { ok: false; erro: string }> {
+export async function gravarModoLoja(modo: ModoLoja): Promise<{ ok: true } | { ok: false; erro: string }> {
   if (!bancoConfigurado()) return { ok: false, erro: "Banco de dados não configurado." };
+  if (!modoValido(modo)) return { ok: false, erro: "Opção inválida." };
   try {
-    const db = obterBanco();
-    await db.consulta(
+    await obterBanco().consulta(
       `insert into estado_loja (id, modo, atualizado_em) values (true, $1, now())
        on conflict (id) do update set modo = excluded.modo, atualizado_em = now()`,
       [modo],
     );
-    if (modo === "mais_tarde") await db.consulta("update estado_loja set abre_as = $1", [abreAs]);
   } catch (erro) {
     console.error("modo-loja: falha ao gravar —", erro instanceof Error ? erro.message : erro);
     return {

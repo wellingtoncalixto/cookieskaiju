@@ -1,12 +1,11 @@
 import { SITE_URL, loja, type Produto } from "@/config/loja";
 import { imagemProduto, menorPreco } from "@/lib/catalogo";
+import { especificacaoHorario, textoDias, diasAbertos, type HorarioSemana } from "@/lib/horario";
 
 const abs = (path: string) => `${SITE_URL}${path}`;
 /** Fotos enviadas pelo admin já vêm com URL completa. */
 const absImagem = (src: string) => (src.startsWith("http") ? src : abs(src));
 const preco = (v: number) => v.toFixed(2);
-const hhmm = (min: number) =>
-  `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 
 const oferta = (p: Produto) => ({
   "@type": "Offer",
@@ -16,8 +15,11 @@ const oferta = (p: Produto) => ({
   url: abs(`/cookies/${p.slug}`),
 });
 
-export function jsonLdPadaria(produtos: Produto[]) {
+/** Padaria (negócio local), com o horário de funcionamento salvo no admin (sem dias abertos: sem horário). */
+export function jsonLdPadaria(produtos: Produto[], horario: HorarioSemana) {
   const precos = produtos.map((p) => p.preco);
+  const dias = textoDias([...diasAbertos(horario)], true);
+  const horarios = especificacaoHorario(horario);
   return {
     "@context": "https://schema.org",
     "@type": "Bakery",
@@ -26,8 +28,7 @@ export function jsonLdPadaria(produtos: Produto[]) {
     url: abs("/"),
     logo: abs("/brand/logo-cookies-kaiju.png"),
     image: [abs("/og/og-padrao.jpg"), abs("/brand/mascote-logo.jpg")],
-    description:
-      "Cookies artesanais recheados de 120 g feitos em Mogi Mirim/SP, com entrega aos sábados e domingos em Mogi Mirim e Mogi Guaçu.",
+    description: `Cookies artesanais recheados de ${loja.pesoGramas} g feitos em Mogi Mirim/SP, com entrega${dias ? ` ${dias}` : ""} em Mogi Mirim e Mogi Guaçu.`,
     telephone: loja.contato.telefoneSchema,
     priceRange: `R$ ${Math.min(...precos)}–${Math.max(...precos)}`,
     servesCuisine: "Cookies",
@@ -41,12 +42,7 @@ export function jsonLdPadaria(produtos: Produto[]) {
       addressCountry: "BR",
     },
     areaServed: loja.areaAtendida.map((name) => ({ "@type": "City", name })),
-    openingHoursSpecification: {
-      "@type": "OpeningHoursSpecification",
-      dayOfWeek: ["https://schema.org/Saturday", "https://schema.org/Sunday"],
-      opens: hhmm(loja.agenda.abreMin),
-      closes: hhmm(loja.agenda.fechaMin),
-    },
+    ...(horarios.length ? { openingHoursSpecification: horarios } : {}),
     hasMenu: {
       "@type": "Menu",
       name: "Cardápio Cookies Kaiju",

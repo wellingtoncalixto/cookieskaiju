@@ -13,6 +13,7 @@ import { brl } from "@/lib/formato";
 import { textosTaxa } from "@/lib/frete";
 import { linhaPagamento, linkWhatsApp, montarMensagemWhatsApp } from "@/lib/mensagem";
 import { CHAVE_AGORA, horaDe, textoHorario } from "@/lib/agenda";
+import { faixaDeId } from "@/lib/horario";
 import { freteEmAndamento } from "@/lib/agendar-frete";
 import { gerarIdPedido } from "@/lib/id-pedido";
 import {
@@ -94,7 +95,7 @@ export function TelaRevisao() {
   const linhas = linhasSacola(itens);
   const paraAgora = pedido.horario === CHAVE_AGORA;
   const [dataIso, janelaId] = paraAgora ? ["", ""] : (pedido.horario ?? "|").split("|");
-  const janela = loja.janelas.find((j) => j.id === janelaId);
+  const janela = faixaDeId(janelaId);
   const data = dataIso ? dataDeIso(dataIso) : null;
   const horarioTexto = textoHorario(situacao.agenda, pedido.horario);
   const taxa = textosTaxa(resumo.taxa);

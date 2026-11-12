@@ -2,16 +2,33 @@
 
 O `/admin` substitui o Painel Comercial e a planilha de precificação:
 
-- **Operação**: abre e fecha o delivery e mostra os pedidos de hoje e os agendados (código, itens, hora em que
-  foi feito, cookies, entrega e total), com botões de status (concluído, cancelado, abandonado). Pedidos
-  cancelados somem da lista, mas continuam no banco.
+- **Operação**: cartão **Funcionamento** e os pedidos de hoje e os agendados (código, itens, hora em que foi
+  feito, cookies, entrega e total), com botões de status (concluído, cancelado, abandonado). Pedidos cancelados
+  somem da lista, mas continuam no banco. O cartão mostra se a loja está aberta agora e tem duas chaves, que
+  salvam na hora (se falhar, a chave volta à posição anterior e aparece o aviso):
+  - **Abrir e fechar pelo horário** (automático): a loja abre e fecha sozinha pelo horário da semana.
+  - Desligada, entra no modo manual e aparece **Loja aberta agora**. Aberta: o site aceita pedido para hoje,
+    mesmo fora do horário. Fechada: o site avisa e só deixa agendar para outros dias. O manual vale só no dia:
+    à meia-noite (horário de São Paulo) volta sozinho ao automático.
+  - O site percebe a mudança em até 1 minuto. O antigo "Abre mais tarde" não existe mais.
+- **Horário** (`/admin/horario`): os 7 dias, de segunda a domingo, cada um aberto ou fechado, com "Abre às" e
+  "Fecha às" (de 30 em 30 min, das 6h às 23h30; um horário por dia). O fechamento precisa ser pelo menos 1 hora
+  depois da abertura. Salva pelo botão **Salvar horário**; com erro, nada é salvo. O horário define quando a
+  loja abre no automático, até quando vale o pedido para hoje (o fechamento do dia), as faixas de 1 hora para
+  agendar e os textos e dados estruturados (JSON-LD) do site, que se atualizam ao salvar. Sem banco (ou antes
+  da migração `0008`), vale o padrão de `src/config/loja.ts`: sábado e domingo, das 13h às 18h.
 - **Produtos**: cardápio do site (nome, preço de venda, foto, esgotado, ativo, ordem). O site lê daqui.
 - **Precificação**: insumos, receitas (a massa é uma receita "base" usada pelos sabores) e forno elétrico.
   Qualquer mudança recalcula o custo, o lucro e a margem de todos os sabores.
-- **Estoque** (na Operação e em cada produto): unidades prontas de cada sabor. Cada pedido do site reserva as
-  dele; cancelado ou abandonado devolve. Em zero, o site mostra "Esgotado", a sacola não passa do disponível e a
-  revisão do pedido confere o estoque antes de liberar o envio. Vazio = não controlar.
-  Se dois clientes levarem a última unidade no mesmo segundo, o segundo pedido chega marcado **Sem estoque**.
+- **Estoque** (na Operação e em cada produto): unidades prontas de cada sabor. O pedido do site não mexe no
+  estoque ao chegar (pedido falso ou desistência não esgota o cardápio): as unidades baixam quando você marca o
+  pedido como **concluído**. Tirar de concluído (pendente, cancelado ou abandonado) devolve. Pedido lançado no
+  admin segue a mesma regra: já concluído baixa; pendente baixa ao concluir. Pedidos pendentes de antes desta
+  regra já tinham reservado ao chegar: continuam reservados, não baixam de novo ao concluir e devolvem se
+  cancelados ou abandonados. Em zero, o site mostra "Esgotado", a sacola não passa do disponível e a revisão do
+  pedido confere o estoque antes de liberar o envio. Vazio = não controlar.
+  O pedido fica marcado **Sem estoque** se já chegou com mais unidades do que havia, ou se faltaram unidades ao
+  concluir.
 - **Compras**: envie a foto ou o PDF de uma nota/cupom fiscal de compra. A IA (Claude) lê os itens, converte
   cada um para embalagem (g, ml ou un) e sugere o insumo correspondente; você confere e aplica. Os preços dos insumos
   são atualizados, os custos dos sabores recalculados e o total vira uma despesa no financeiro.
@@ -57,6 +74,8 @@ DATABASE_URL="postgresql://..." npm run db:migrar db/dados-iniciais.local.sql
 ```
 
 - `db/migracoes/` cria as tabelas e as views do painel (pode rodar de novo: só aplica o que falta).
+  A `0008_horario_funcionamento.sql` cria o horário da semana (começa em sábado e domingo, 13h às 18h) e troca
+  quem estava em "Abre mais tarde" por automático. Rode as migrações antes (ou junto) de publicar esta versão.
 - `db/dados-iniciais.local.sql` traz insumos, receitas, produtos, configuração, metas e os 8 pedidos
   históricos. **Esse arquivo não vai para o GitHub** (o repositório é público e ele tem receitas e custos).
 
@@ -67,8 +86,8 @@ Para um Preview, rode o mesmo comando com a `DATABASE_URL` do branch do Preview.
 Depois de um deploy com as variáveis acima, abra `/admin`, entre com a senha e confira:
 
 1. **Produtos** mostra os 4 sabores, com custo e margem.
-2. **Operação**: toque em **Fechado** e veja o site avisar "Fechado agora" em até 1 minuto; volte para
-   **Automático**.
+2. **Operação**: desligue **Abrir e fechar pelo horário**, desligue **Loja aberta agora** e veja o site avisar
+   "Fechado agora" em até 1 minuto; ligue de novo **Abrir e fechar pelo horário**.
 3. Faça um pedido de teste no site e veja o pedido aparecer na Operação (atualiza sozinha a cada minuto).
 
 Sem `DATABASE_URL`, o site continua funcionando com o cardápio de `src/config/loja.ts` e o admin avisa que o

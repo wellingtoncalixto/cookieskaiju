@@ -7,7 +7,14 @@ import { AvisoPrivacidade } from "@/components/Basicos";
 import { CabecalhoEtapa, Carregando, ListaErros, TotalAcao } from "@/components/checkout/Comum";
 import { loja } from "@/config/loja";
 import { useCheckout, useGuardaEtapa } from "@/hooks/useCheckout";
-import { CHAVE_AGORA, chaveHorario, horarioValido, textoPrevisao } from "@/lib/agenda";
+import {
+  CHAVE_AGORA,
+  chaveHorario,
+  horarioValido,
+  podeAgendar,
+  quandoAgendado,
+  textoPrevisao,
+} from "@/lib/agenda";
 import { mascaraCep, soDigitos } from "@/lib/formato";
 import { agendarFrete } from "@/lib/agendar-frete";
 import { textosTaxa } from "@/lib/frete";
@@ -26,13 +33,19 @@ export function TelaEntrega() {
   const retirada = loja.retirada.habilitada && pedido.modalidade === "retirada";
   const invalido = (campo: string) => (tentou && erros.entrega.campos.includes(campo)) || undefined;
 
-  // Se o horário escolhido deixou de valer, limpa. Se dá para pedir para hoje, já deixa essa opção marcada.
+  // "Agendar" tocado sem faixa escolhida ainda (com faixa, o horário já diz que é agendado).
+  const [agendar, setAgendar] = useState(false);
+
+  // Se o horário escolhido deixou de valer, limpa. Se dá para pedir para hoje (e o cliente não quis
+  // agendar), já deixa o padrão marcado.
   useEffect(() => {
     if (!situacao) return;
     const ag = situacao.agenda;
     if (!horarioValido(ag, usePedido.getState().horario))
-      usePedido.getState().definir({ horario: ag.agora ? CHAVE_AGORA : null });
-  }, [situacao]);
+      usePedido.getState().definir({
+        horario: ag.agora && !(agendar && podeAgendar(ag)) ? CHAVE_AGORA : null,
+      });
+  }, [situacao, agendar]);
 
   useFrete(endereco, !retirada);
   const cep = useCep();
@@ -57,6 +70,9 @@ export function TelaEntrega() {
     ag.dias.find((d) => d.data === diaEscolhido) ??
     ag.dias.find((d) => d.data === diaDoHorario) ??
     ag.dias[0];
+  // Como no iFood: "Padrão" (hoje, sem escolher horário) ou "Agendar" (dia e faixa, hoje inclusive).
+  // Sem dia para agendar (manual aberto e nenhum dia aberto), só o "Padrão".
+  const agendado = quandoAgendado(ag, agendar, pedido.horario);
   const taxa = textosTaxa(resumo.taxa);
   const gratis = resumo.taxa.tipo === "gratis";
 
@@ -129,73 +145,100 @@ export function TelaEntrega() {
                 </div>
               )}
               {ag.agora && (
-                <div className="chips hoje" data-invalido={invalido("horario")}>
+                <fieldset className="pay" data-invalido={(invalido("horario") && !agendado) || undefined}>
+                  <legend className="sr-only">{podeAgendar(ag) ? "Padrão ou agendar" : "Quando"}</legend>
                   <label className="chip">
                     <input
                       type="radio"
-                      name="horario"
-                      value={CHAVE_AGORA}
-                      checked={pedido.horario === CHAVE_AGORA}
-                      onChange={() => definir({ horario: CHAVE_AGORA })}
+                      name="quando"
+                      value="padrao"
+                      checked={!agendado}
+                      onChange={() => {
+                        setAgendar(false);
+                        definir({ horario: CHAVE_AGORA });
+                      }}
                     />
                     <span>
-                      {retirada ? "Hoje, pronto em" : "Hoje, em"} {loja.agenda.prazoMinimoMin} a{" "}
-                      {loja.agenda.prazoMaximoMin} min
-                      <em>previsão {textoPrevisao(ag)}</em>
+                      Padrão
+                      <em>
+                        {retirada ? "Pronto" : "Hoje"} em {loja.agenda.prazoMinimoMin} a{" "}
+                        {loja.agenda.prazoMaximoMin} min · {textoPrevisao(ag)}
+                      </em>
                     </span>
                   </label>
-                </div>
-              )}
-              {ag.agora && <p className="fmsg">Ou agende para outro dia:</p>}
-              {/* Seletor de dias: as faixas aparecem só para o dia escolhido. */}
-              <fieldset className="slot-day">
-                <legend className="sr-only">Dia</legend>
-                <div className="dias" role="radiogroup" aria-label="Dia">
-                  {ag.dias.map((d) => {
-                    const data = dataDeIso(d.data);
-                    return (
-                      <label className="chip" key={d.data}>
-                        <input
-                          type="radio"
-                          name="dia"
-                          value={d.data}
-                          checked={d.data === diaAtivo?.data}
-                          onChange={() => setDia(d.data)}
-                        />
-                        <span>
-                          {DIAS_CURTOS[data.getUTCDay()]}
-                          <em>{ddmm(data)}</em>
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-              {diaAtivo && (
-                <fieldset className="slot-day">
-                  <legend className="sr-only">
-                    Horário em {capitalizar(DIAS[dataDeIso(diaAtivo.data).getUTCDay()])},{" "}
-                    {ddmm(dataDeIso(diaAtivo.data))}
-                  </legend>
-                  <div className="chips" data-invalido={invalido("horario")}>
-                    {loja.janelas.map((j) => {
-                      const chave = chaveHorario(diaAtivo.data, j.id);
-                      return (
-                        <label className="chip" key={chave}>
-                          <input
-                            type="radio"
-                            name="horario"
-                            value={chave}
-                            checked={pedido.horario === chave}
-                            disabled={!diaAtivo.janelas.some((x) => x.id === j.id)}
-                            onChange={() => definir({ horario: chave })}
-                          />
-                          <span>{j.nome}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                  {podeAgendar(ag) && (
+                    <label className="chip">
+                      <input
+                        type="radio"
+                        name="quando"
+                        value="agendar"
+                        checked={agendado}
+                        onChange={() => {
+                          setAgendar(true);
+                          if (pedido.horario === CHAVE_AGORA) definir({ horario: null });
+                        }}
+                      />
+                      <span>
+                        Agendar
+                        <em>Escolha o dia e o horário</em>
+                      </span>
+                    </label>
+                  )}
                 </fieldset>
+              )}
+              {/* Seletor de dias: as faixas aparecem só para o dia escolhido. */}
+              {agendado && (
+                <>
+                  <fieldset className="slot-day">
+                    <legend className="sr-only">Dia</legend>
+                    <div className="dias" role="radiogroup" aria-label="Dia">
+                      {ag.dias.map((d) => {
+                        const data = dataDeIso(d.data);
+                        return (
+                          <label className="chip" key={d.data}>
+                            <input
+                              type="radio"
+                              name="dia"
+                              value={d.data}
+                              checked={d.data === diaAtivo?.data}
+                              onChange={() => setDia(d.data)}
+                            />
+                            <span>
+                              {d.data === ag.hoje ? "Hoje" : DIAS_CURTOS[data.getUTCDay()]}
+                              <em>{ddmm(data)}</em>
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                  {diaAtivo && (
+                    <fieldset className="slot-day">
+                      <legend className="sr-only">
+                        Horário em {capitalizar(DIAS[dataDeIso(diaAtivo.data).getUTCDay()])},{" "}
+                        {ddmm(dataDeIso(diaAtivo.data))}
+                      </legend>
+                      <div className="chips" data-invalido={invalido("horario")}>
+                        {diaAtivo.todas.map((j) => {
+                          const chave = chaveHorario(diaAtivo.data, j.id);
+                          return (
+                            <label className="chip" key={chave}>
+                              <input
+                                type="radio"
+                                name="horario"
+                                value={chave}
+                                checked={pedido.horario === chave}
+                                disabled={!diaAtivo.janelas.some((x) => x.id === j.id)}
+                                onChange={() => definir({ horario: chave })}
+                              />
+                              <span>{j.nome}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
+                  )}
+                </>
               )}
             </div>
           </section>

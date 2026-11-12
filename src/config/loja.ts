@@ -105,29 +105,33 @@ export const loja = {
     },
   ] satisfies Produto[] as Produto[],
 
-  /** Faixas de horário para agendar a entrega ou a retirada (de 1 em 1 hora, dentro do funcionamento). */
-  janelas: [
-    { id: "13h", inicio: 13 * 60, fim: 14 * 60, nome: "13h às 14h" },
-    { id: "14h", inicio: 14 * 60, fim: 15 * 60, nome: "14h às 15h" },
-    { id: "15h", inicio: 15 * 60, fim: 16 * 60, nome: "15h às 16h" },
-    { id: "16h", inicio: 16 * 60, fim: 17 * 60, nome: "16h às 17h" },
-    { id: "17h", inicio: 17 * 60, fim: 18 * 60, nome: "17h às 18h" },
-  ] satisfies Janela[] as Janela[],
+  /**
+   * Horário de funcionamento padrão, por dia da semana (0 = domingo … 6 = sábado), em minutos desde 0h.
+   * O admin muda em Admin → Horário (tabela horario_funcionamento); este vale sem banco ou se a leitura falhar.
+   * As faixas de 1 hora para agendar são geradas dentro do horário de cada dia (src/lib/horario.ts).
+   */
+  horarioPadrao: [
+    { aberto: true, abre: 13 * 60, fecha: 18 * 60 },
+    { aberto: false, abre: 13 * 60, fecha: 18 * 60 },
+    { aberto: false, abre: 13 * 60, fecha: 18 * 60 },
+    { aberto: false, abre: 13 * 60, fecha: 18 * 60 },
+    { aberto: false, abre: 13 * 60, fecha: 18 * 60 },
+    { aberto: false, abre: 13 * 60, fecha: 18 * 60 },
+    { aberto: true, abre: 13 * 60, fecha: 18 * 60 },
+  ] satisfies { aberto: boolean; abre: number; fecha: number }[] as {
+    aberto: boolean;
+    abre: number;
+    fecha: number;
+  }[],
 
-  /** Funcionamento: sábado e domingo, das 13h às 18h, com delivery. O pedido nunca é bloqueado. */
+  /** O cliente sempre pode fazer o pedido; dias e horas vêm do horário de funcionamento. */
   agenda: {
-    /** Dias abertos (0 = domingo … 6 = sábado). */
-    diasAbertos: [6, 0],
-    abreMin: 13 * 60,
-    fechaMin: 18 * 60,
     /**
-     * Pedido para hoje: o cliente não escolhe horário; recebe (ou retira) entre `prazoMinimoMin` e
-     * `prazoMaximoMin` depois do pedido (ou da abertura, se pedir antes de abrir).
+     * Pedido para hoje (aceito até o fechamento do dia): o cliente não escolhe horário; recebe (ou retira)
+     * entre `prazoMinimoMin` e `prazoMaximoMin` depois do pedido (ou da abertura, se pedir antes de abrir).
      */
     prazoMinimoMin: 60,
     prazoMaximoMin: 90,
-    /** Último horário para pedir para hoje (17h + 60 min de prazo mínimo = fechamento às 18h). */
-    pedidoHojeAteMin: 17 * 60,
     /** Quantos dias de funcionamento (depois de hoje) aparecem para agendar. 4 = os dois próximos fins de semana. */
     diasParaAgendar: 4,
   },
