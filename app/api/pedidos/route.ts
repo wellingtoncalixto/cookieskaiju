@@ -1,13 +1,13 @@
-import { revalidateTag } from "next/cache";
 import { REGISTRO_PEDIDOS_ATIVO } from "@/config/registro";
 import { lerCotacao } from "@/lib/assinatura";
-import { TAG_CATALOGO } from "@/server/catalogo";
+import { recusaEnvio } from "@/lib/envio-do-site";
 import { bancoConfigurado } from "@/server/db";
 import { esquemaEntrada, registrarPedido } from "@/server/pedidos";
 
 /**
  * Registra o pedido no banco (painel admin). Nunca recebe nome, telefone nem endereço.
- * Fica desligado até NEXT_PUBLIC_REGISTRO_PEDIDOS=true.
+ * Fica desligado até NEXT_PUBLIC_REGISTRO_PEDIDOS=true. Só aceita JSON vindo do próprio site (recusaEnvio).
+ * Não mexe no estoque: ele baixa quando o admin conclui o pedido.
  *
  * Respostas: { ok: true, duplicado } ou { ok: false, erro, definitivo }.
  * `definitivo: true` = não adianta repetir (o navegador descarta da fila).
@@ -31,6 +31,8 @@ function excedeuLimite(ip: string, agora: number) {
 export async function POST(request: Request) {
   if (!REGISTRO_PEDIDOS_ATIVO || !bancoConfigurado())
     return responder(503, { ok: false, erro: "desativado", definitivo: true });
+  const recusa = recusaEnvio(request);
+  if (recusa) return responder(recusa.status, { ok: false, erro: recusa.erro, definitivo: true });
 
   const agora = Date.now();
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "desconhecido";
@@ -53,8 +55,6 @@ export async function POST(request: Request) {
       segredoFrete ? lerCotacao(token, segredoFrete, agora) : null,
     );
     if (!r.ok) return responder(400, { ok: false, erro: r.erro, definitivo: true });
-    // O estoque mudou: o cardápio (esgotado) precisa refletir na próxima visita.
-    if (!r.duplicado) revalidateTag(TAG_CATALOGO, { expire: 0 });
     return responder(200, { ok: true, id: entrada.data.id, duplicado: r.duplicado });
   } catch (erro) {
     // Log sem dados pessoais (o pedido não tem nenhum): só o ID e a mensagem técnica.

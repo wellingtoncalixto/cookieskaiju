@@ -17,7 +17,7 @@ export function StatusAgenda() {
           <span style={{ visibility: "hidden" }}>Fechado agora</span>
         </span>
         <p style={{ visibility: "hidden" }}>
-          <span className="count">Abre em 0d 00h 00min.</span> Abrimos sábado, 00/00, às 13h. Você já pode
+          <span className="count">Abre em 0d 00h 00min.</span> Abrimos segunda, 00/00, às 00h00. Você já pode
           fazer o pedido e agendar o horário.
         </p>
       </div>

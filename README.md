@@ -58,7 +58,7 @@ O selo da home passa a mostrar "Modo teste", a loja aparece como aberta (com o p
 
 O resto fica em [`src/config/loja.ts`](src/config/loja.ts):
 
-- **Funcionamento e horários:** `agenda` (dias abertos, abertura, fechamento, prazo do pedido para hoje — 60 a 90 minutos —, horário-limite para pedir para hoje e quantos dias aparecem para agendar) e `janelas` (as faixas de 1 hora para agendar outros dias). O cliente sempre pode fazer o pedido: para hoje não escolhe horário; para outro dia, agenda.
+- **Funcionamento e horários:** o horário de cada dia da semana é definido no admin (**Horário**); `horarioPadrao` vale sem banco. `agenda` traz o prazo do pedido para hoje (60 a 90 minutos, aceito até o fechamento do dia) e quantos dias aparecem para agendar. As faixas de 1 hora para agendar são geradas dentro do horário de cada dia. O cliente sempre pode fazer o pedido: para hoje não escolhe horário; ou agenda uma faixa.
 - **Frete:** `frete` (valor base, km incluídos e valor por km).
 - **Promoção:** `promo` (data-limite da entrega e quantidade mínima por cidade). Depois da data, a faixa some sozinha.
 

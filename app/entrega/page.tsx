@@ -3,20 +3,25 @@ import Link from "next/link";
 import { CabecalhoSite, Rodape } from "@/components/Moldura";
 import { loja } from "@/config/loja";
 import { brl } from "@/lib/formato";
-import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { promoVigente, valorFrete } from "@/lib/frete";
-import { agoraSaoPaulo, isoData } from "@/lib/tempo";
+import { diasAbertos, gruposHorario, textoDias, textoFuncionamento, textoHoras } from "@/lib/horario";
+import { agoraSaoPaulo, capitalizar, isoData } from "@/lib/tempo";
 import { obterCatalogo } from "@/server/catalogo";
+import { horarioDoSite } from "@/server/horario";
 
-export const metadata: Metadata = {
-  title: "Entrega de cookies em Mogi Mirim e Mogi Guaçu",
-  description:
-    "Entregamos cookies aos sábados e domingos, das 13h às 18h, em Mogi Mirim e Mogi Guaçu, em 60 a 90 minutos ou agendado. Taxa a partir de R$ 3,00.",
-  alternates: { canonical: "/entrega" },
-};
+// O horário vem do admin (cache com a tag do horário: atualiza ao salvar).
+export async function generateMetadata(): Promise<Metadata> {
+  const quando = textoFuncionamento(await horarioDoSite(), true);
+  return {
+    title: "Entrega de cookies em Mogi Mirim e Mogi Guaçu",
+    description: `Entregamos cookies${quando ? ` ${quando},` : ""} em Mogi Mirim e Mogi Guaçu, em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos ou agendado. Taxa a partir de R$ 3,00.`,
+    alternates: { canonical: "/entrega" },
+  };
+}
 
 export default async function Entrega() {
-  const produtos = await obterCatalogo();
+  const [produtos, horario] = await Promise.all([obterCatalogo(), horarioDoSite()]);
+  const dias = textoDias([...diasAbertos(horario)], true);
   const [ano, mes, dia] = loja.promo.ate.split("-");
   const kms = Array.from({ length: 12 }, (_, i) => i + 1);
   return (
@@ -26,17 +31,22 @@ export default async function Entrega() {
         <div className="page-head">
           <h1 className="page-title">Entrega em Mogi Mirim e Mogi Guaçu</h1>
           <p className="lead">
-            Os cookies artesanais da Cookies Kaiju saem de Mogi Mirim e chegam até você aos sábados e
-            domingos. Atendemos Mogi Mirim e Mogi Guaçu, com taxa calculada pela distância real de rota.
+            Os cookies artesanais da Cookies Kaiju saem de Mogi Mirim e chegam até você
+            {dias ? ` ${dias}` : ""}. Atendemos Mogi Mirim e Mogi Guaçu, com taxa calculada pela distância
+            real de rota.
           </p>
         </div>
 
         <section className="prose" aria-labelledby="t-janelas">
           <h2 id="t-janelas">Dias e horários</h2>
           <ul>
-            <li>Sábado e domingo, das {HORARIO_FUNCIONAMENTO}, com delivery.</li>
+            {gruposHorario(horario).map((g) => (
+              <li key={g.dias.join()}>
+                {capitalizar(textoDias(g.dias))}, das {textoHoras(g.abre, g.fecha)}, com delivery.
+              </li>
+            ))}
             <li>
-              Pedido para hoje (até as 17h) chega em {loja.agenda.prazoMinimoMin} a{" "}
+              Pedido para hoje (até o horário de fechar) chega em {loja.agenda.prazoMinimoMin} a{" "}
               {loja.agenda.prazoMaximoMin} minutos, sem precisar escolher horário.
             </li>
             <li>Fora do horário, você faz o pedido do mesmo jeito e agenda o horário que preferir.</li>

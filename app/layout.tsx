@@ -7,6 +7,7 @@ import { WhatsAppFlutuante } from "@/components/WhatsAppFlutuante";
 import { SITE_URL, loja } from "@/config/loja";
 import { jsonLdPadaria } from "@/lib/seo";
 import { obterCatalogo } from "@/server/catalogo";
+import { horarioDoSite } from "@/server/horario";
 import "./globals.css";
 
 const leagueSpartan = League_Spartan({
@@ -79,7 +80,7 @@ export default async function RootLayout({
   children,
   modal,
 }: Readonly<{ children: React.ReactNode; modal: React.ReactNode }>) {
-  const produtos = await obterCatalogo();
+  const [produtos, horario] = await Promise.all([obterCatalogo(), horarioDoSite()]);
   return (
     <html
       lang="pt-BR"
@@ -90,7 +91,7 @@ export default async function RootLayout({
           Pular para o conteúdo
         </a>
         <Catalogo produtos={produtos}>
-          <JsonLd dados={jsonLdPadaria(produtos)} />
+          <JsonLd dados={jsonLdPadaria(produtos, horario)} />
           <HidratarSacola />
           {children}
           <WhatsAppFlutuante />

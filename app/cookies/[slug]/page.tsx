@@ -7,10 +7,11 @@ import { FichaProduto } from "@/components/FichaProduto";
 import { CabecalhoSite, Rodape } from "@/components/Moldura";
 import { loja } from "@/config/loja";
 import { imagemProduto, posterProduto, produtoPorSlug } from "@/lib/catalogo";
-import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
+import { textoFuncionamento } from "@/lib/horario";
 import { brl } from "@/lib/formato";
 import { jsonLdProduto } from "@/lib/seo";
 import { obterCatalogo } from "@/server/catalogo";
+import { horarioDoSite } from "@/server/horario";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -40,9 +41,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function PaginaCookie({ params }: Props) {
-  const produtos = await obterCatalogo();
+  const [produtos, horario] = await Promise.all([obterCatalogo(), horarioDoSite()]);
   const p = produtoPorSlug((await params).slug, produtos);
   if (!p) notFound();
+  const quando = textoFuncionamento(horario, true);
   const outros = produtos.filter((o) => o.slug !== p.slug);
 
   return (
@@ -73,10 +75,9 @@ export default async function PaginaCookie({ params }: Props) {
               lotes em Mogi Mirim, para chegar macio por dentro e com bastante recheio.
             </p>
             <p>
-              Peça pelo site a qualquer hora e receba no sábado ou no domingo, das {HORARIO_FUNCIONAMENTO}:
-              para hoje, em 60 a 90 minutos, ou agendado para outro dia. Entregamos em Mogi Mirim e Mogi
-              Guaçu, com taxa a partir de {brl(loja.frete.base)}. Veja os detalhes na página de{" "}
-              <Link href="/entrega">entrega</Link>.
+              Peça pelo site a qualquer hora e receba{quando ? ` ${quando}` : ""}: para hoje, em 60 a 90
+              minutos, ou agendado para outro dia. Entregamos em Mogi Mirim e Mogi Guaçu, com taxa a partir de{" "}
+              {brl(loja.frete.base)}. Veja os detalhes na página de <Link href="/entrega">entrega</Link>.
             </p>
             <figure className="poster">
               <Image

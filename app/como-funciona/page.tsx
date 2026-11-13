@@ -5,30 +5,46 @@ import { CabecalhoSite, Rodape } from "@/components/Moldura";
 import { loja } from "@/config/loja";
 import { menorPreco } from "@/lib/catalogo";
 import { obterCatalogo } from "@/server/catalogo";
-import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
 import { brl } from "@/lib/formato";
+import { ORDEM_SEMANA, textoFuncionamento, textoHoras, type HorarioSemana } from "@/lib/horario";
 import { jsonLdFaq } from "@/lib/seo";
 import { DIAS_CURTOS } from "@/lib/tempo";
+import { horarioDoSite } from "@/server/horario";
 
-export const metadata: Metadata = {
-  title: "Como funciona o pedido",
-  description:
-    "Abrimos sábado e domingo, das 13h às 18h. Pedido para hoje chega em 60 a 90 minutos, ou agende outro dia. Pagamento por Pix, cartão ou dinheiro.",
-  alternates: { canonical: "/como-funciona" },
-};
+// O horário vem do admin (cache com a tag do horário: atualiza ao salvar).
+export async function generateMetadata(): Promise<Metadata> {
+  const quando = textoFuncionamento(await horarioDoSite());
+  return {
+    title: "Como funciona o pedido",
+    description: `${quando ? `Abrimos ${quando}. ` : ""}Pedido para hoje chega em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos, ou agende outro dia. Pagamento por Pix, cartão ou dinheiro.`,
+    alternates: { canonical: "/como-funciona" },
+  };
+}
 
-const montarPerguntas = (precoMinimo: number) => [
+/** "Funcionamos aos sábados e domingos, das 13h às 18h" */
+function funcionamos(h: HorarioSemana) {
+  const quando = textoFuncionamento(h, true);
+  return quando ? `Funcionamos ${quando}` : "No momento estamos sem horário de funcionamento";
+}
+
+/** "As entregas são aos sábados e domingos, das 13h às 18h." */
+function entregas(h: HorarioSemana) {
+  const quando = textoFuncionamento(h, true);
+  return quando ? `As entregas são ${quando}.` : "No momento estamos sem horário de entregas.";
+}
+
+const montarPerguntas = (precoMinimo: number, horario: HorarioSemana) => [
   {
     pergunta: "Quando posso fazer o pedido?",
-    resposta: `A qualquer hora. Funcionamos aos sábados e domingos, das ${HORARIO_FUNCIONAMENTO}: pedindo para hoje, você recebe em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos; para outro dia, agenda o horário que preferir.`,
+    resposta: `A qualquer hora. ${funcionamos(horario)}: pedindo para hoje, você recebe em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos; para outro dia, agenda o horário que preferir.`,
   },
   {
     pergunta: "Quais são os horários de entrega?",
-    resposta: `As entregas são no sábado e no domingo, das ${HORARIO_FUNCIONAMENTO}. Pedido para hoje não precisa escolher horário: chega em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos. Para outro dia, você escolhe uma faixa de 1 hora.`,
+    resposta: `${entregas(horario)} Pedido para hoje não precisa escolher horário: chega em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos. Se preferir, agende uma faixa de 1 hora, para hoje ou outro dia.`,
   },
   {
     pergunta: "Posso pedir para hoje?",
-    resposta: `Sim, até as 17h. A entrega chega em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos depois do pedido (se pedir antes de abrirmos, conta a partir das 13h).`,
+    resposta: `Sim, nos dias de funcionamento, até a hora de fechar. A entrega chega em ${loja.agenda.prazoMinimoMin} a ${loja.agenda.prazoMaximoMin} minutos depois do pedido (se pedir antes de abrirmos, conta a partir da abertura).`,
   },
   ...(loja.retirada.habilitada
     ? [
@@ -58,18 +74,10 @@ const montarPerguntas = (precoMinimo: number) => [
   },
 ];
 
-const semana: [number, string, string][] = [
-  [1, "Agende", ""],
-  [2, "Agende", ""],
-  [3, "Agende", ""],
-  [4, "Agende", ""],
-  [5, "Agende", ""],
-  [6, HORARIO_FUNCIONAMENTO, "entrega"],
-  [0, HORARIO_FUNCIONAMENTO, "entrega"],
-];
-
 export default async function ComoFunciona() {
-  const perguntas = montarPerguntas(menorPreco(await obterCatalogo()));
+  const [produtos, horario] = await Promise.all([obterCatalogo(), horarioDoSite()]);
+  const perguntas = montarPerguntas(menorPreco(produtos), horario);
+  const quando = textoFuncionamento(horario);
   return (
     <>
       <JsonLd dados={jsonLdFaq(perguntas)} />
@@ -86,18 +94,20 @@ export default async function ComoFunciona() {
         <section className="prose" aria-labelledby="t-agenda">
           <h2 id="t-agenda">Horário de funcionamento</h2>
           <ul className="week" aria-label="Funcionamento na semana">
-            {semana.map(([d, s, c]) => (
-              <li key={d} className={`day ${c}`}>
+            {ORDEM_SEMANA.map((d) => (
+              <li key={d} className={`day ${horario[d].aberto ? "entrega" : ""}`}>
                 <span className="d">{DIAS_CURTOS[d]}</span>
-                <span className="s">{s}</span>
+                <span className="s">
+                  {horario[d].aberto ? textoHoras(horario[d].abre, horario[d].fecha) : "Agende"}
+                </span>
               </li>
             ))}
           </ul>
           <ul>
-            <li>Abrimos sábado e domingo, das {HORARIO_FUNCIONAMENTO}, com delivery.</li>
+            {quando && <li>Abrimos {quando}, com delivery.</li>}
             <li>
               Pedido para hoje chega em {loja.agenda.prazoMinimoMin} a {loja.agenda.prazoMaximoMin} minutos
-              (até as 17h).
+              (até a hora de fechar).
             </li>
             <li>Nos outros dias e horários, faça o pedido do mesmo jeito e agende o horário que preferir.</li>
           </ul>

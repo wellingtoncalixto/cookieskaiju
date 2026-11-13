@@ -1,11 +1,12 @@
 import { REGISTRO_PEDIDOS_ATIVO } from "@/config/registro";
+import { recusaEnvio } from "@/lib/envio-do-site";
 import { idPedidoValido } from "@/lib/id-pedido";
 import { bancoConfigurado } from "@/server/db";
 import { reservarNumero } from "@/server/pedidos";
 
 /**
  * Reserva o número do pedido (#57) quando o cliente chega na revisão, para ir na mensagem do WhatsApp.
- * Corpo: { chave: "CK-…", anterior?: "CK-…" }. Resposta: { numero }.
+ * Corpo: { chave: "CK-…", anterior?: "CK-…" }. Resposta: { numero }. Só aceita JSON vindo do próprio site.
  */
 const semCache = { "Cache-Control": "no-store" };
 
@@ -22,6 +23,12 @@ function excedeuLimite(ip: string, agora: number) {
 export async function POST(request: Request) {
   if (!REGISTRO_PEDIDOS_ATIVO || !bancoConfigurado())
     return Response.json({ erro: "desativado" }, { status: 503, headers: semCache });
+  const recusa = recusaEnvio(request);
+  if (recusa)
+    return Response.json(
+      { ok: false, erro: recusa.erro, definitivo: true },
+      { status: recusa.status, headers: semCache },
+    );
   const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "desconhecido";
   if (excedeuLimite(ip, Date.now()))
     return Response.json({ erro: "limite" }, { status: 429, headers: semCache });

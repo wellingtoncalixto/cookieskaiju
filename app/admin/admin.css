@@ -200,27 +200,231 @@
   margin-top: 12px;
 }
 
-/* chave abrir/fechar */
-.adm-modo {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 6px;
-  margin-top: 10px;
+/* funcionamento e horário (switches, alvos de 48 px, foco amarelo, sem branco sobre laranja) */
+.adm-funcionamento .adm-estado::before {
+  display: none;
 }
-.adm-modo button {
-  min-height: 48px;
-  border-radius: 10px;
-  border: 1px solid var(--line-strong);
-  background: var(--color-void);
+.adm-funcionamento .adm-estado {
+  margin: 0;
+  color: var(--color-err);
+}
+.adm-funcionamento .adm-estado.aberto {
+  color: var(--color-ok);
+}
+.adm-card-titulo {
+  margin: 0 0 8px !important;
+}
+.adm-apoio {
   color: var(--bone-dim);
-  font: inherit;
-  font-weight: 700;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
+.adm-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 4px 0;
   cursor: pointer;
 }
-.adm-modo button[aria-pressed="true"] {
+.adm-switch-rotulo {
+  flex: 1;
+  font-weight: 700;
+}
+.adm-switch-estado {
+  color: var(--bone-dim);
+  font-size: 14px;
+  min-width: 5.5em;
+  text-align: right;
+}
+.adm-switch input {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 999px;
+  border: 2px solid var(--bone-dim);
+  background: var(--color-void);
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+.adm-switch input::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bone-dim);
+  transition: transform 0.15s;
+}
+.adm-switch input:checked {
   background: var(--color-orange);
   border-color: var(--color-orange);
-  color: #fff;
+}
+.adm-switch input:checked::before {
+  background: #111;
+  transform: translateX(20px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .adm-switch input,
+  .adm-switch input::before {
+    transition: none;
+  }
+}
+/* Enquanto o switch salva: os toques são ignorados e a mensagem diz "Salvando…". */
+.adm-funcionamento[aria-busy="true"] .adm-switch,
+.adm-funcionamento[aria-busy="true"] .adm-switch input {
+  cursor: progress;
+}
+.adm-funcionamento[aria-busy="true"] .adm-switch input {
+  opacity: 0.7;
+}
+.adm-msg:empty {
+  display: none;
+}
+.adm-msg {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+.adm-msg.ok {
+  color: var(--color-ok);
+}
+.adm-msg.erro {
+  color: var(--color-err);
+}
+.adm-link-grande {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  margin-top: 8px;
+  padding: 0 4px;
+  color: var(--color-yellow);
+  font-weight: 700;
+}
+.adm-horario {
+  max-width: 640px;
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.adm-dia-horario {
+  margin: 0;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--adm-card);
+  min-width: 0;
+}
+.adm-dia-horario legend {
+  font-weight: 800;
+  padding: 0 4px;
+}
+.adm-horas {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.adm-horas label {
+  font-size: 14px;
+  color: var(--bone-dim);
+}
+.adm-horas select {
+  min-height: 48px;
+}
+.adm-horas select[aria-invalid="true"] {
+  border: 2px solid var(--color-err);
+}
+/* Desktop: uma linha por dia (Dia | switch | Abre | Fecha). */
+@media (min-width: 640px) {
+  .adm-dia-horario {
+    display: grid;
+    grid-template-columns: 7.5em auto minmax(0, 1fr);
+    align-items: center;
+    column-gap: 16px;
+  }
+  .adm-dia-horario legend {
+    float: left;
+    padding: 0;
+  }
+  /* O rótulo "Abre neste dia" some só da vista: o nome acessível continua "Segunda: Abre neste dia". */
+  .adm-dia-horario .adm-switch-rotulo {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  /* "Abre às" ao lado do campo, para o dia caber numa linha. */
+  .adm-horas .adm-campo {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+  }
+  .adm-erro-campo {
+    grid-column: 1 / -1;
+  }
+}
+.adm-erro-campo {
+  color: var(--color-err);
+  font-size: 14px;
+  margin: 8px 0 0;
+}
+.adm-resumo-erros {
+  border: 2px solid var(--color-err);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--color-err);
+  background: rgb(255 138 107 / 0.08);
+}
+.adm-resumo-erros p {
+  margin: 0;
+  font-weight: 800;
+}
+.adm-resumo-erros ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.adm-resumo-erros a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.adm-alerta-horario {
+  margin: 0;
+  border: 1px solid var(--color-yellow);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--color-yellow);
+}
+.adm-nao-salvo {
+  margin: 0;
+  color: var(--color-yellow);
+  font-size: 14px;
+  min-height: 1.4em;
+}
+.adm-salvar {
+  width: 100%;
+  min-height: 48px;
+  border-radius: 10px;
+  border: 0;
+  background: var(--color-orange);
+  color: #111;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+.adm-salvar[aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.8;
 }
 .adm-estado {
   display: flex;

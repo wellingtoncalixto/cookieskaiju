@@ -12,10 +12,11 @@ import { StatusAgenda } from "@/components/StatusAgenda";
 import { loja } from "@/config/loja";
 import { listaNomes, menorPreco } from "@/lib/catalogo";
 import { brl } from "@/lib/formato";
-import { HORARIO_FUNCIONAMENTO } from "@/lib/agenda";
+import { textoDiasCurto, textoFuncionamento, textoHorasCurto } from "@/lib/horario";
 import { promoVigente } from "@/lib/frete";
 import { jsonLdSite } from "@/lib/seo";
 import { obterCatalogo } from "@/server/catalogo";
+import { horarioDoSite } from "@/server/horario";
 import { agoraSaoPaulo, isoData } from "@/lib/tempo";
 import avatar from "../public/brand/mascote-logo.jpg";
 
@@ -28,7 +29,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const produtos = await obterCatalogo();
+  const [produtos, horario] = await Promise.all([obterCatalogo(), horarioDoSite()]);
+  const quando = textoFuncionamento(horario, true);
   return (
     <div className="com-barra">
       <JsonLd dados={jsonLdSite()} />
@@ -60,11 +62,11 @@ export default async function Home() {
         <ul className="facts" aria-label="Informações da loja">
           <li className="fact">
             <span className="k">Entregas</span>
-            <span className="v">Sáb e dom</span>
+            <span className="v">{textoDiasCurto(horario) || "Agende pelo WhatsApp"}</span>
           </li>
           <li className="fact">
             <span className="k">Horário</span>
-            <span className="v">{HORARIO_FUNCIONAMENTO}</span>
+            <span className="v">{textoHorasCurto(horario) || "A combinar"}</span>
           </li>
           <li className="fact">
             <span className="k">Cookies</span>
@@ -102,9 +104,9 @@ export default async function Home() {
                 {brl(menorPreco(produtos))}.
               </p>
               <p>
-                Funcionamos aos sábados e domingos, das {HORARIO_FUNCIONAMENTO}, com delivery em Mogi Mirim e
-                Mogi Guaçu. Dá para pedir a qualquer hora: para hoje, a entrega chega em 60 a 90 minutos; para
-                outro dia, você agenda o pedido para o horário que preferir.
+                Funcionamos{quando ? ` ${quando},` : ""} com delivery em Mogi Mirim e Mogi Guaçu. Dá para
+                pedir a qualquer hora: para hoje, a entrega chega em 60 a 90 minutos; para outro dia, você
+                agenda o pedido para o horário que preferir.
               </p>
               <p>
                 Monte a sacola aqui no site e envie o pedido pelo WhatsApp. O pagamento é na entrega, por Pix,

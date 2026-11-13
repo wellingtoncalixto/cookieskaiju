@@ -10,7 +10,7 @@ import { isoData, paredeSP } from "@/lib/tempo";
 import { calcularValoresPedido } from "@/lib/valores-pedido";
 import { configCustos, mapaConfiguracao } from "@/server/configuracao";
 import { epochMs, obterBanco } from "@/server/db";
-import { baixarEstoquePedido, devolverEstoquePedido, rebaixarEstoquePedido } from "@/server/estoque";
+import { baixarEstoqueConcluido, devolverEstoquePedido } from "@/server/estoque";
 
 /**
  * O que o navegador manda para /api/pedidos. Sem nome, telefone, endereço nem mensagem:
@@ -43,13 +43,19 @@ type ProdutoBanco = {
   preco: number;
   custo: number | null;
   disponivel: boolean;
+  estoque: number | null;
 };
+
+/** Aviso na chegada (sem baixar nada): algum sabor que controla estoque tem menos unidades do que o pedido. */
+const faltaEstoque = (itens: { produto: ProdutoBanco; quantidade: number }[]) =>
+  itens.some((i) => i.produto.estoque != null && i.produto.estoque < i.quantidade);
 
 /**
  * Valida e recalcula o pedido no servidor e grava pedido + itens numa única instrução (atômica):
  * - preço e custo vêm do banco (o navegador só diz sabores e quantidades);
  * - o frete só é aceito com cotação assinada que bate com o CEP; a promoção é recalculada aqui;
  * - data e hora são do servidor; o mesmo ID nunca grava duas vezes (clique duplo, nova tentativa).
+ * Não mexe no estoque: só baixa quando o admin marca o pedido como concluído (pedido falso não esgota o cardápio).
  */
 export async function registrarPedido(
   entrada: EntradaPedido,
@@ -60,7 +66,7 @@ export async function registrarPedido(
   const slugs = entrada.itens.map((i) => i.slug);
   if (new Set(slugs).size !== slugs.length) return { ok: false, erro: "produto_repetido" };
   const produtos = await db.consulta<ProdutoBanco>(
-    `select id, slug, nome, preco::float8 as preco, custo_unitario::float8 as custo, disponivel
+    `select id, slug, nome, preco::float8 as preco, custo_unitario::float8 as custo, disponivel, estoque
        from produtos where ativo and slug = any($1)`,
     [slugs],
   );
@@ -155,12 +161,8 @@ export async function registrarPedido(
   );
   if (gravados.length === 0) return { ok: true, duplicado: true, semEstoque: false };
 
-  // Reserva as unidades (cada produto numa instrução condicional: nunca vende a mesma unidade duas vezes).
-  const faltou =
-    (await baixarEstoquePedido(
-      entrada.id,
-      itens.map((i) => ({ produtoId: i.produto.id, quantidade: i.quantidade })),
-    )) || itens.some((i) => !i.produto.disponivel);
+  // Só o aviso: esgotado ou com menos unidades que o pedido. O estoque baixa quando o pedido é concluído.
+  const faltou = itens.some((i) => !i.produto.disponivel) || faltaEstoque(itens);
   if (faltou) await db.consulta("update pedidos set sem_estoque = true where id = $1", [entrada.id]);
   return { ok: true, duplicado: false, semEstoque: faltou };
 }
@@ -215,21 +217,23 @@ export async function pedidosDaOperacao(hoje: string): Promise<PedidoOperacao[]>
   );
 }
 
-const INATIVOS: StatusPedido[] = ["cancelado", "abandonado"];
-
-/** Muda o status. Cancelado/abandonado devolve o estoque reservado; reativado reserva de novo. */
+/**
+ * Muda o status e acerta o estoque pelo saldo dos movimentos do pedido:
+ * - entrar em concluído baixa (se o pedido ainda não tem nada baixado/reservado);
+ * - qualquer outro status devolve o que houver: sair de concluído devolve a baixa e o pendente antigo (que
+ *   reservou ao chegar) devolve a reserva; pendente ↔ cancelado/abandonado de pedido novo não tem saldo e não mexe.
+ * Só atualiza se o status muda: clique duplo em "concluído" não baixa duas vezes.
+ */
 export async function mudarStatus(id: string, status: StatusPedido): Promise<boolean> {
-  const [r] = await obterBanco().consulta<{ antes: StatusPedido }>(
-    `with antes as (select status from pedidos where id = $1),
-          up as (update pedidos set status = $2, status_em = now() where id = $1 returning id)
-     select antes.status as antes from antes, up`,
+  const [r] = await obterBanco().consulta<{ mudou: boolean }>(
+    `with up as (update pedidos set status = $2, status_em = now() where id = $1 and status <> $2 returning id)
+     select exists (select 1 from up) as mudou from pedidos where id = $1`,
     [id, status],
   );
   if (!r) return false;
-  const eraInativo = INATIVOS.includes(r.antes);
-  const ficaInativo = INATIVOS.includes(status);
-  if (!eraInativo && ficaInativo) await devolverEstoquePedido(id);
-  if (eraInativo && !ficaInativo) await rebaixarEstoquePedido(id);
+  if (!r.mudou) return true;
+  if (status === "concluido") await baixarEstoqueConcluido(id);
+  else await devolverEstoquePedido(id);
   return true;
 }
 
@@ -314,7 +318,8 @@ export type PedidoManual = {
 
 /**
  * Pedido lançado à mão no admin (telefone, balcão, conversa direta). Usa os preços e custos atuais, recebe o próximo
- * número, reserva o estoque e entra no financeiro como os pedidos do site (tipo_registro = 'manual').
+ * número e entra no financeiro como os pedidos do site (tipo_registro = 'manual'). Estoque como no site: se já nasce
+ * concluído, baixa; se nasce pendente, só avisa quando faltam unidades e baixa ao ser concluído.
  */
 export async function registrarPedidoManual(
   d: PedidoManual,
@@ -324,7 +329,7 @@ export async function registrarPedidoManual(
   const ids = d.itens.map((i) => i.produtoId);
   if (!ids.length) return { ok: false, erro: "Informe a quantidade de pelo menos um sabor." };
   if (new Set(ids).size !== ids.length) return { ok: false, erro: "Sabor repetido." };
-  const produtos = await db.consulta<ProdutoBanco & { estoque: number | null }>(
+  const produtos = await db.consulta<ProdutoBanco>(
     `select id, slug, nome, preco::float8 as preco, custo_unitario::float8 as custo, disponivel, estoque
        from produtos where id = any($1)`,
     [ids],
@@ -397,10 +402,11 @@ export async function registrarPedidoManual(
       ),
     ],
   );
-  const semEstoque = await baixarEstoquePedido(
-    id,
-    itens.map((i) => ({ produtoId: i.produto.id, quantidade: i.quantidade })),
-  );
-  if (semEstoque) await db.consulta("update pedidos set sem_estoque = true where id = $1", [id]);
+  let semEstoque: boolean;
+  if (d.status === "concluido") semEstoque = await baixarEstoqueConcluido(id);
+  else {
+    semEstoque = faltaEstoque(itens);
+    if (semEstoque) await db.consulta("update pedidos set sem_estoque = true where id = $1", [id]);
+  }
   return { ok: true, numero: r.numero, semEstoque };
 }

@@ -4,10 +4,14 @@ import { bancoConfigurado, obterBanco } from "@/server/db";
 
 /**
  * Estoque por sabor (produtos.estoque; nulo = não controla).
- * - Pedido do site: reserva as unidades na hora em que chega (baixarEstoquePedido).
- * - Cancelado/abandonado: devolve o que aquele pedido tinha reservado (devolverEstoquePedido).
+ * - Pedido do site ou pendente lançado no admin: não mexe no estoque (pedido falso ou desistência não esgota o
+ *   cardápio). Só fica marcado "sem estoque" se, na chegada, já faltavam unidades (aviso, sem baixar).
+ * - Concluído (pelo admin, ou lançado já concluído): baixa as unidades (baixarEstoqueConcluido).
+ * - Saiu de concluído (pendente, cancelado ou abandonado): devolve o que tinha baixado (devolverEstoquePedido).
+ * - Pendentes antigos, de antes desta regra, reservaram ao chegar. O saldo dos movimentos do pedido mostra isso:
+ *   continuam reservados enquanto pendentes, ao concluir não baixam de novo e, cancelados/abandonados, devolvem.
  * - Admin: informa a contagem (definirEstoque), registrada como ajuste.
- * Toda mudança vira uma linha em movimentos_estoque.
+ * Toda mudança vira uma linha em movimentos_estoque; o saldo por pedido evita baixar ou devolver duas vezes.
  */
 
 /**
@@ -48,7 +52,7 @@ export async function baixarEstoquePedido(
   return faltou;
 }
 
-/** Devolve ao estoque o que o pedido tinha reservado (saldo dos movimentos dele). */
+/** Devolve ao estoque o que o pedido tinha baixado ou reservado (saldo dos movimentos dele; sem saldo, nada). */
 export async function devolverEstoquePedido(pedidoId: string) {
   await obterBanco().consulta(
     `with saldo as (
@@ -66,22 +70,26 @@ export async function devolverEstoquePedido(pedidoId: string) {
   );
 }
 
-/** Pedido reativado (de cancelado/abandonado para pendente/concluído): reserva de novo, se já tinha reservado antes. */
-export async function rebaixarEstoquePedido(pedidoId: string) {
+/**
+ * Pedido concluído: baixa as unidades dos itens, a não ser que ele já tenha saldo negativo (já baixado, ou pendente
+ * antigo que reservou ao chegar). Devolve true se faltou unidade (e marca o pedido como sem estoque).
+ */
+export async function baixarEstoqueConcluido(pedidoId: string): Promise<boolean> {
   const db = obterBanco();
-  const [r] = await db.consulta<{ ja: boolean; saldo: number }>(
-    `select count(*) > 0 as ja, coalesce(sum(quantidade), 0)::int as saldo
-       from movimentos_estoque where pedido_id = $1`,
+  const [r] = await db.consulta<{ baixado: boolean }>(
+    `select exists (
+       select 1 from movimentos_estoque where pedido_id = $1 group by produto_id having sum(quantidade) < 0
+     ) as baixado`,
     [pedidoId],
   );
-  // Pedido que nunca reservou (histórico) ou que ainda está reservado: nada a fazer.
-  if (!r.ja || r.saldo < 0) return;
+  if (r.baixado) return false;
   const itens = await db.consulta<{ produtoId: number; quantidade: number }>(
     `select produto_id as "produtoId", quantidade from itens_pedido where pedido_id = $1 and produto_id is not null`,
     [pedidoId],
   );
-  if (await baixarEstoquePedido(pedidoId, itens))
-    await db.consulta("update pedidos set sem_estoque = true where id = $1", [pedidoId]);
+  const faltou = await baixarEstoquePedido(pedidoId, itens);
+  if (faltou) await db.consulta("update pedidos set sem_estoque = true where id = $1", [pedidoId]);
+  return faltou;
 }
 
 /** Contagem informada no admin (null = deixa de controlar). Registra a diferença como ajuste. */

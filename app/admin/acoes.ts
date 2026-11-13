@@ -1,12 +1,14 @@
 "use server";
 
 import { put } from "@vercel/blob";
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { hora } from "@/lib/agenda";
-import { modoValido, gravarModoLoja } from "@/server/modo-loja";
+import { calcularAgenda, type ModoLoja } from "@/lib/agenda";
+import { validarHorario, type ErroHorario } from "@/lib/horario";
+import { gravarHorario, lerHorario, TAG_HORARIO } from "@/server/horario";
+import { gravarModoLoja } from "@/server/modo-loja";
 import { TAG_CATALOGO } from "@/server/catalogo";
 import {
   adicionarIngrediente,
@@ -86,24 +88,61 @@ export async function sair() {
 
 // ---------------------------------------------------------------- operação
 
-export async function definirModoLoja(form: FormData) {
+/** Resposta das ações chamadas pelos switches e pelo formulário do horário (sem recarregar a página). */
+export type ResultadoAcao =
+  { ok: true; mensagem: string } | { ok: false; erro: string; erros?: ErroHorario[] };
+
+const AVISO_SITE = "O site atualiza em até 1 minuto.";
+
+/**
+ * Switch "Abrir e fechar pelo horário". Ligado: automático. Desligado: manual, começando no estado de agora
+ * (aberta ou fechada pelo horário), para nada mudar de repente. O manual volta ao automático à meia-noite.
+ */
+export async function definirAutomaticoAcao(automatico: unknown): Promise<ResultadoAcao> {
   await exigirAdmin();
-  const modo = texto(form, "modo");
-  if (!modoValido(modo)) voltar("/admin", { erro: "Opção inválida." });
-  const abre = Number(texto(form, "abreAs"));
-  const abreAs = texto(form, "abreAs") && Number.isInteger(abre) && abre >= 0 && abre < 1440 ? abre : null;
-  const r = await gravarModoLoja(modo, abreAs);
-  if (!r.ok) voltar("/admin", { erro: r.erro });
-  const msg = {
-    automatico: "Loja seguindo o horário automático.",
-    aberto: "Delivery aberto.",
-    fechado: "Delivery fechado.",
-    mais_tarde:
-      abreAs != null
-        ? `Delivery fechado até as ${hora(abreAs)}, aceitando agendamento para hoje.`
-        : "Delivery fechado por enquanto, aceitando agendamento para hoje.",
+  if (typeof automatico !== "boolean") return { ok: false, erro: "Opção inválida." };
+  let modo: ModoLoja = "automatico";
+  if (!automatico) {
+    const horario = await lerHorario();
+    modo = calcularAgenda(Date.now(), { horario }).modo === "aberta" ? "aberto" : "fechado";
+  }
+  const r = await gravarModoLoja(modo);
+  if (!r.ok) return r;
+  revalidatePath("/admin");
+  return {
+    ok: true,
+    mensagem: automatico
+      ? `Salvo: a loja abre e fecha pelo horário. ${AVISO_SITE}`
+      : `Salvo: modo manual, loja ${modo === "aberto" ? "aberta" : "fechada"} agora. Volta ao horário à meia-noite. ${AVISO_SITE}`,
   };
-  voltar("/admin", { ok: `${msg[modo]} O site atualiza em até 1 minuto.` });
+}
+
+/** Switch "Loja aberta agora" (modo manual). */
+export async function definirAbertaAgoraAcao(aberta: unknown): Promise<ResultadoAcao> {
+  await exigirAdmin();
+  if (typeof aberta !== "boolean") return { ok: false, erro: "Opção inválida." };
+  const r = await gravarModoLoja(aberta ? "aberto" : "fechado");
+  if (!r.ok) return r;
+  revalidatePath("/admin");
+  return {
+    ok: true,
+    mensagem: aberta
+      ? `Salvo: loja aberta agora, aceitando pedido para hoje. ${AVISO_SITE}`
+      : `Salvo: loja fechada agora; o site só deixa agendar para outros dias. ${AVISO_SITE}`,
+  };
+}
+
+/** Horário da semana (admin → Horário). Valida tudo de novo aqui; com erro, nada é salvo. */
+export async function salvarHorarioAcao(dados: unknown): Promise<ResultadoAcao> {
+  await exigirAdmin();
+  const v = validarHorario(dados);
+  if (!v.ok) return { ok: false, erro: "Nada foi salvo: corrija os erros abaixo.", erros: v.erros };
+  const r = await gravarHorario(v.horario);
+  if (!r.ok) return r;
+  // Páginas do site com o horário (textos e JSON-LD) e as telas do admin.
+  revalidateTag(TAG_HORARIO, { expire: 0 });
+  revalidatePath("/admin/horario");
+  return { ok: true, mensagem: `Salvo: horário da semana atualizado. ${AVISO_SITE}` };
 }
 
 export async function definirStatusPedido(form: FormData) {
@@ -113,7 +152,7 @@ export async function definirStatusPedido(form: FormData) {
   if (!(STATUS as readonly string[]).includes(status)) voltar("/admin", { erro: "Status inválido." });
   if (!(await mudarStatus(pedido, status as (typeof STATUS)[number])))
     voltar("/admin", { erro: "Pedido não encontrado." });
-  // Cancelar/reativar mexe no estoque: o site precisa refletir.
+  // Concluir (baixa) ou tirar de concluído (devolve) mexe no estoque: o site (esgotado) precisa refletir.
   revalidateTag(TAG_CATALOGO, { expire: 0 });
   voltar("/admin", {});
 }
